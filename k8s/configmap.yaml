@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tasacionec-config
+  labels:
+    app: tasacionec
+data:
+  APP_NAME: "tasacionec"
+  NODE_ENV: "production"
+  # Database connection (non-sensitive parts)
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "app"
+  POSTGRES_USER: "postgres"
+  # MinIO connection
+  MINIO_ENDPOINT: "minio"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+  # Kafka connection
+  KAFKA_BROKERS: "kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092"
+  # Application settings
+  MAX_PHOTO_SIZE: "10485760"
+  MIN_PHOTOS_PER_PROPERTY: "5"
+  MAX_PHOTOS_PER_PROPERTY: "20"

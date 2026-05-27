@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tasacionec-app
+  labels:
+    app: tasacionec
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: tasacionec
+    component: app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tasacionec-app-internal
+  labels:
+    app: tasacionec
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: tasacionec
+    component: app
