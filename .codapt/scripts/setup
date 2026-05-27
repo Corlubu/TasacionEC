@@ -12,4 +12,4 @@ scripts/docker-compose down --remove-orphans
 scripts/docker-compose build
 
 # install dependencies, generate prisma client, push schema
-scripts/docker-compose run --rm app bash -c "( NODE_ENV=development pnpm install ) && pnpm exec prisma db push --accept-data-loss && ( [ \"\$NODE_ENV\" = \"production\" ] && pnpm build || true ) && pnpm exec tsx src/server/scripts/setup.ts"
+scripts/docker-compose run --name tasacionec --rm app bash -c "( NODE_ENV=development pnpm install ) && pnpm exec prisma db push --accept-data-loss && ( [ \"\$NODE_ENV\" = \"production\" ] && pnpm build || true ) && pnpm exec tsx src/server/scripts/setup.ts"
