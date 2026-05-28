@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+// Cargar el archivo .env de forma nativa (Soportado en Node >= 20.12)
+// Usamos un try/catch por si el archivo no existe (como pasaría en producción)
+try {
+  process.loadEnvFile();
+} catch (error) {
+  // Ignoramos el error, asumimos que las variables ya están inyectadas en el sistema
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production"]),
   BASE_URL: z.string().optional(),

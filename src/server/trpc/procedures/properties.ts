@@ -20,15 +20,12 @@ async function getUserIdFromToken(token: string): Promise<number> {
 }
 
 // Helper to preprocess optional number fields - converts NaN to undefined
-const optionalNumber = z.preprocess(
-  (val) => {
-    if (typeof val === 'number' && isNaN(val)) {
-      return undefined;
-    }
-    return val;
-  },
-  z.number().optional()
-);
+const optionalNumber = z.preprocess((val) => {
+  if (typeof val === "number" && isNaN(val)) {
+    return undefined;
+  }
+  return val;
+}, z.number().optional());
 
 export const createProperty = baseProcedure
   .input(
@@ -42,13 +39,13 @@ export const createProperty = baseProcedure
       type: z.enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"]),
       latitude: z.number(),
       longitude: z.number(),
-      
+
       // Areas - using optionalNumber to handle NaN
       landArea: optionalNumber,
       builtArea: optionalNumber,
       areaAccordingToDeed: optionalNumber,
       areaOnSite: optionalNumber,
-      
+
       // Physical Characteristics - using optionalNumber to handle NaN
       bedrooms: optionalNumber,
       bathrooms: optionalNumber,
@@ -60,7 +57,7 @@ export const createProperty = baseProcedure
       zoning: z.string().optional(),
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
-      
+
       // Boundaries - using optionalNumber to handle NaN
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
@@ -70,12 +67,27 @@ export const createProperty = baseProcedure
       eastBoundaryAdjacent: z.string().optional(),
       westBoundaryLength: optionalNumber,
       westBoundaryAdjacent: z.string().optional(),
-      
+
       // Environment and Services
-      zoneClassification: z.enum(["RESIDENTIAL", "COMMERCIAL", "MIXED_USE", "INDUSTRIAL", "AGRICULTURAL", "INSTITUTIONAL"]).optional(),
-      urbanConsolidation: z.enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"]).optional(),
-      populationDensity: z.enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"]).optional(),
-      roadType: z.enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"]).optional(),
+      zoneClassification: z
+        .enum([
+          "RESIDENTIAL",
+          "COMMERCIAL",
+          "MIXED_USE",
+          "INDUSTRIAL",
+          "AGRICULTURAL",
+          "INSTITUTIONAL",
+        ])
+        .optional(),
+      urbanConsolidation: z
+        .enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"])
+        .optional(),
+      populationDensity: z
+        .enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"])
+        .optional(),
+      roadType: z
+        .enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"])
+        .optional(),
       roadCondition: z.string().optional(),
       sidewalkAvailable: z.boolean().optional(),
       hasPotableWater: z.boolean().optional(),
@@ -87,44 +99,148 @@ export const createProperty = baseProcedure
       hasInternet: z.boolean().optional(),
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
-      
+
       // Technical Specifications
-      foundationType: z.enum(["ISOLATED_FOOTINGS", "CONTINUOUS_FOOTINGS", "SLAB_ON_GRADE", "PILES", "DEEP_FOUNDATION", "NONE"]).optional(),
+      foundationType: z
+        .enum([
+          "ISOLATED_FOOTINGS",
+          "CONTINUOUS_FOOTINGS",
+          "SLAB_ON_GRADE",
+          "PILES",
+          "DEEP_FOUNDATION",
+          "NONE",
+        ])
+        .optional(),
       foundationDescription: z.string().optional(),
-      structureType: z.enum(["REINFORCED_CONCRETE", "STEEL", "WOOD", "MASONRY", "MIXED", "NONE"]).optional(),
+      structureType: z
+        .enum([
+          "REINFORCED_CONCRETE",
+          "STEEL",
+          "WOOD",
+          "MASONRY",
+          "MIXED",
+          "NONE",
+        ])
+        .optional(),
       structureDescription: z.string().optional(),
-      masonryType: z.enum(["BRICK", "CONCRETE_BLOCK", "ADOBE", "BAHAREQUE", "PREFABRICATED_PANELS", "NONE"]).optional(),
+      masonryType: z
+        .enum([
+          "BRICK",
+          "CONCRETE_BLOCK",
+          "ADOBE",
+          "BAHAREQUE",
+          "PREFABRICATED_PANELS",
+          "NONE",
+        ])
+        .optional(),
       masonryDescription: z.string().optional(),
-      floorType: z.enum(["REINFORCED_CONCRETE_SLAB", "STEEL_BEAMS", "WOOD_JOISTS", "NONE"]).optional(),
+      floorType: z
+        .enum([
+          "REINFORCED_CONCRETE_SLAB",
+          "STEEL_BEAMS",
+          "WOOD_JOISTS",
+          "NONE",
+        ])
+        .optional(),
       floorDescription: z.string().optional(),
-      exteriorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
-      interiorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
+      exteriorCoating: z
+        .enum([
+          "CERAMIC",
+          "PORCELAIN",
+          "NATURAL_STONE",
+          "PAINT",
+          "PLASTER",
+          "STUCCO",
+          "WALLPAPER",
+          "WOOD_PANELING",
+          "NONE",
+        ])
+        .optional(),
+      interiorCoating: z
+        .enum([
+          "CERAMIC",
+          "PORCELAIN",
+          "NATURAL_STONE",
+          "PAINT",
+          "PLASTER",
+          "STUCCO",
+          "WALLPAPER",
+          "WOOD_PANELING",
+          "NONE",
+        ])
+        .optional(),
       coatingDescription: z.string().optional(),
-      carpentryType: z.enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"]).optional(),
+      carpentryType: z
+        .enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"])
+        .optional(),
       carpentryDescription: z.string().optional(),
       locksmithType: z.string().optional(),
       locksmithDescription: z.string().optional(),
-      glazingType: z.enum(["CLEAR_GLASS", "TEMPERED_GLASS", "LAMINATED_GLASS", "DOUBLE_GLAZED", "NONE"]).optional(),
+      glazingType: z
+        .enum([
+          "CLEAR_GLASS",
+          "TEMPERED_GLASS",
+          "LAMINATED_GLASS",
+          "DOUBLE_GLAZED",
+          "NONE",
+        ])
+        .optional(),
       glazingDescription: z.string().optional(),
-      plumbingType: z.enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"]).optional(),
+      plumbingType: z
+        .enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"])
+        .optional(),
       plumbingDescription: z.string().optional(),
-      electricalType: z.enum(["CONDUIT", "ARMORED_CABLE", "NON_METALLIC_CABLE", "EXPOSED", "NONE"]).optional(),
+      electricalType: z
+        .enum([
+          "CONDUIT",
+          "ARMORED_CABLE",
+          "NON_METALLIC_CABLE",
+          "EXPOSED",
+          "NONE",
+        ])
+        .optional(),
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
-      
+
+      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      propertyRegime: z
+        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
+        .optional(),
+      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      personPresentAtInspection: z.string().optional(),
+      saturationIndex: optionalNumber,
+      socioeconomicLevel: z
+        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
+        .optional(),
+      cos: optionalNumber,
+      cus: optionalNumber,
+      easementsAndRestrictions: z.string().optional(),
+      panoramicCharacteristics: z.string().optional(),
+      rentableUnits: optionalNumber,
+      aliquotPercentage: optionalNumber,
+      roofCondition: z.string().optional(),
+      fenceCondition: z.string().optional(),
+      ceilingCondition: z.string().optional(),
+      stairsCondition: z.string().optional(),
+      numberOfFacades: optionalNumber,
+      hasMaintenanceLogs: z.boolean().optional(),
+      maintenanceNotes: z.string().optional(),
+
       // Construction Details (existing - mantener para compatibilidad)
       roofMaterial: z.string().optional(),
       wallMaterial: z.string().optional(),
       floorMaterial: z.string().optional(),
-      conservationState: z.enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"]).optional(),
-      
+      conservationState: z
+        .enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"])
+        .optional(),
+
       // Legal Information
       legalOwner: z.string().optional(),
       cadastralNumber: z.string().optional(),
       registrationNumber: z.string().optional(),
       hasLiens: z.boolean().optional(),
       hasEncumbrances: z.boolean().optional(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -158,10 +274,18 @@ export const getProperties = baseProcedure
   .input(
     z.object({
       token: z.string(),
-      status: z.enum(["DRAFT", "IN_PROGRESS", "PENDING_REVIEW", "COMPLETED", "ARCHIVED"]).optional(),
+      status: z
+        .enum([
+          "DRAFT",
+          "IN_PROGRESS",
+          "PENDING_REVIEW",
+          "COMPLETED",
+          "ARCHIVED",
+        ])
+        .optional(),
       limit: z.number().default(20),
       offset: z.number().default(0),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -197,7 +321,7 @@ export const getProperty = baseProcedure
     z.object({
       token: z.string(),
       propertyId: z.number(),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -252,7 +376,7 @@ export const getPropertyStats = baseProcedure
   .input(
     z.object({
       token: z.string(),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -304,14 +428,16 @@ export const updateProperty = baseProcedure
       city: z.string().optional(),
       state: z.string().optional(),
       zipCode: z.string().optional(),
-      type: z.enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"]).optional(),
-      
+      type: z
+        .enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"])
+        .optional(),
+
       // Areas - using optionalNumber to handle NaN
       landArea: optionalNumber,
       builtArea: optionalNumber,
       areaAccordingToDeed: optionalNumber,
       areaOnSite: optionalNumber,
-      
+
       // Physical Characteristics - using optionalNumber to handle NaN
       bedrooms: optionalNumber,
       bathrooms: optionalNumber,
@@ -323,7 +449,7 @@ export const updateProperty = baseProcedure
       zoning: z.string().optional(),
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
-      
+
       // Boundaries - using optionalNumber to handle NaN
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
@@ -333,12 +459,27 @@ export const updateProperty = baseProcedure
       eastBoundaryAdjacent: z.string().optional(),
       westBoundaryLength: optionalNumber,
       westBoundaryAdjacent: z.string().optional(),
-      
+
       // Environment and Services
-      zoneClassification: z.enum(["RESIDENTIAL", "COMMERCIAL", "MIXED_USE", "INDUSTRIAL", "AGRICULTURAL", "INSTITUTIONAL"]).optional(),
-      urbanConsolidation: z.enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"]).optional(),
-      populationDensity: z.enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"]).optional(),
-      roadType: z.enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"]).optional(),
+      zoneClassification: z
+        .enum([
+          "RESIDENTIAL",
+          "COMMERCIAL",
+          "MIXED_USE",
+          "INDUSTRIAL",
+          "AGRICULTURAL",
+          "INSTITUTIONAL",
+        ])
+        .optional(),
+      urbanConsolidation: z
+        .enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"])
+        .optional(),
+      populationDensity: z
+        .enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"])
+        .optional(),
+      roadType: z
+        .enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"])
+        .optional(),
       roadCondition: z.string().optional(),
       sidewalkAvailable: z.boolean().optional(),
       hasPotableWater: z.boolean().optional(),
@@ -350,44 +491,148 @@ export const updateProperty = baseProcedure
       hasInternet: z.boolean().optional(),
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
-      
+
       // Technical Specifications
-      foundationType: z.enum(["ISOLATED_FOOTINGS", "CONTINUOUS_FOOTINGS", "SLAB_ON_GRADE", "PILES", "DEEP_FOUNDATION", "NONE"]).optional(),
+      foundationType: z
+        .enum([
+          "ISOLATED_FOOTINGS",
+          "CONTINUOUS_FOOTINGS",
+          "SLAB_ON_GRADE",
+          "PILES",
+          "DEEP_FOUNDATION",
+          "NONE",
+        ])
+        .optional(),
       foundationDescription: z.string().optional(),
-      structureType: z.enum(["REINFORCED_CONCRETE", "STEEL", "WOOD", "MASONRY", "MIXED", "NONE"]).optional(),
+      structureType: z
+        .enum([
+          "REINFORCED_CONCRETE",
+          "STEEL",
+          "WOOD",
+          "MASONRY",
+          "MIXED",
+          "NONE",
+        ])
+        .optional(),
       structureDescription: z.string().optional(),
-      masonryType: z.enum(["BRICK", "CONCRETE_BLOCK", "ADOBE", "BAHAREQUE", "PREFABRICATED_PANELS", "NONE"]).optional(),
+      masonryType: z
+        .enum([
+          "BRICK",
+          "CONCRETE_BLOCK",
+          "ADOBE",
+          "BAHAREQUE",
+          "PREFABRICATED_PANELS",
+          "NONE",
+        ])
+        .optional(),
       masonryDescription: z.string().optional(),
-      floorType: z.enum(["REINFORCED_CONCRETE_SLAB", "STEEL_BEAMS", "WOOD_JOISTS", "NONE"]).optional(),
+      floorType: z
+        .enum([
+          "REINFORCED_CONCRETE_SLAB",
+          "STEEL_BEAMS",
+          "WOOD_JOISTS",
+          "NONE",
+        ])
+        .optional(),
       floorDescription: z.string().optional(),
-      exteriorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
-      interiorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
+      exteriorCoating: z
+        .enum([
+          "CERAMIC",
+          "PORCELAIN",
+          "NATURAL_STONE",
+          "PAINT",
+          "PLASTER",
+          "STUCCO",
+          "WALLPAPER",
+          "WOOD_PANELING",
+          "NONE",
+        ])
+        .optional(),
+      interiorCoating: z
+        .enum([
+          "CERAMIC",
+          "PORCELAIN",
+          "NATURAL_STONE",
+          "PAINT",
+          "PLASTER",
+          "STUCCO",
+          "WALLPAPER",
+          "WOOD_PANELING",
+          "NONE",
+        ])
+        .optional(),
       coatingDescription: z.string().optional(),
-      carpentryType: z.enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"]).optional(),
+      carpentryType: z
+        .enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"])
+        .optional(),
       carpentryDescription: z.string().optional(),
       locksmithType: z.string().optional(),
       locksmithDescription: z.string().optional(),
-      glazingType: z.enum(["CLEAR_GLASS", "TEMPERED_GLASS", "LAMINATED_GLASS", "DOUBLE_GLAZED", "NONE"]).optional(),
+      glazingType: z
+        .enum([
+          "CLEAR_GLASS",
+          "TEMPERED_GLASS",
+          "LAMINATED_GLASS",
+          "DOUBLE_GLAZED",
+          "NONE",
+        ])
+        .optional(),
       glazingDescription: z.string().optional(),
-      plumbingType: z.enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"]).optional(),
+      plumbingType: z
+        .enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"])
+        .optional(),
       plumbingDescription: z.string().optional(),
-      electricalType: z.enum(["CONDUIT", "ARMORED_CABLE", "NON_METALLIC_CABLE", "EXPOSED", "NONE"]).optional(),
+      electricalType: z
+        .enum([
+          "CONDUIT",
+          "ARMORED_CABLE",
+          "NON_METALLIC_CABLE",
+          "EXPOSED",
+          "NONE",
+        ])
+        .optional(),
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
-      
+
+      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      propertyRegime: z
+        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
+        .optional(),
+      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      personPresentAtInspection: z.string().optional(),
+      saturationIndex: optionalNumber,
+      socioeconomicLevel: z
+        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
+        .optional(),
+      cos: optionalNumber,
+      cus: optionalNumber,
+      easementsAndRestrictions: z.string().optional(),
+      panoramicCharacteristics: z.string().optional(),
+      rentableUnits: optionalNumber,
+      aliquotPercentage: optionalNumber,
+      roofCondition: z.string().optional(),
+      fenceCondition: z.string().optional(),
+      ceilingCondition: z.string().optional(),
+      stairsCondition: z.string().optional(),
+      numberOfFacades: optionalNumber,
+      hasMaintenanceLogs: z.boolean().optional(),
+      maintenanceNotes: z.string().optional(),
+
       // Construction Details (existing)
       roofMaterial: z.string().optional(),
       wallMaterial: z.string().optional(),
       floorMaterial: z.string().optional(),
-      conservationState: z.enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"]).optional(),
-      
+      conservationState: z
+        .enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"])
+        .optional(),
+
       // Legal Information
       legalOwner: z.string().optional(),
       cadastralNumber: z.string().optional(),
       registrationNumber: z.string().optional(),
       hasLiens: z.boolean().optional(),
       hasEncumbrances: z.boolean().optional(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -447,7 +692,7 @@ export const deleteProperty = baseProcedure
     z.object({
       token: z.string(),
       propertyId: z.number(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -507,16 +752,22 @@ export const importProperties = baseProcedure
           city: z.string(),
           state: z.string(),
           zipCode: z.string().optional(),
-          type: z.enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"]),
+          type: z.enum([
+            "HOUSE",
+            "APARTMENT",
+            "COMMERCIAL",
+            "LAND",
+            "INDUSTRIAL",
+          ]),
           latitude: z.number(),
           longitude: z.number(),
-          
+
           // Areas - using optionalNumber to handle NaN
           landArea: optionalNumber,
           builtArea: optionalNumber,
           areaAccordingToDeed: optionalNumber,
           areaOnSite: optionalNumber,
-          
+
           // Physical Characteristics - using optionalNumber to handle NaN
           bedrooms: optionalNumber,
           bathrooms: optionalNumber,
@@ -528,7 +779,7 @@ export const importProperties = baseProcedure
           zoning: z.string().optional(),
           parking: optionalNumber,
           amenities: z.array(z.string()).optional(),
-          
+
           // Boundaries - using optionalNumber to handle NaN
           northBoundaryLength: optionalNumber,
           northBoundaryAdjacent: z.string().optional(),
@@ -538,12 +789,27 @@ export const importProperties = baseProcedure
           eastBoundaryAdjacent: z.string().optional(),
           westBoundaryLength: optionalNumber,
           westBoundaryAdjacent: z.string().optional(),
-          
+
           // Environment and Services
-          zoneClassification: z.enum(["RESIDENTIAL", "COMMERCIAL", "MIXED_USE", "INDUSTRIAL", "AGRICULTURAL", "INSTITUTIONAL"]).optional(),
-          urbanConsolidation: z.enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"]).optional(),
-          populationDensity: z.enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"]).optional(),
-          roadType: z.enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"]).optional(),
+          zoneClassification: z
+            .enum([
+              "RESIDENTIAL",
+              "COMMERCIAL",
+              "MIXED_USE",
+              "INDUSTRIAL",
+              "AGRICULTURAL",
+              "INSTITUTIONAL",
+            ])
+            .optional(),
+          urbanConsolidation: z
+            .enum(["CONSOLIDATED", "IN_CONSOLIDATION", "INCIPIENT", "RURAL"])
+            .optional(),
+          populationDensity: z
+            .enum(["HIGH", "MEDIUM", "LOW", "VERY_LOW"])
+            .optional(),
+          roadType: z
+            .enum(["ASPHALT", "CONCRETE", "PAVING_STONES", "DIRT", "GRAVEL"])
+            .optional(),
           roadCondition: z.string().optional(),
           sidewalkAvailable: z.boolean().optional(),
           hasPotableWater: z.boolean().optional(),
@@ -555,49 +821,129 @@ export const importProperties = baseProcedure
           hasInternet: z.boolean().optional(),
           hasStreetLighting: z.boolean().optional(),
           hasGarbageCollection: z.boolean().optional(),
-          
+
           // Technical Specifications
-          foundationType: z.enum(["ISOLATED_FOOTINGS", "CONTINUOUS_FOOTINGS", "SLAB_ON_GRADE", "PILES", "DEEP_FOUNDATION", "NONE"]).optional(),
+          foundationType: z
+            .enum([
+              "ISOLATED_FOOTINGS",
+              "CONTINUOUS_FOOTINGS",
+              "SLAB_ON_GRADE",
+              "PILES",
+              "DEEP_FOUNDATION",
+              "NONE",
+            ])
+            .optional(),
           foundationDescription: z.string().optional(),
-          structureType: z.enum(["REINFORCED_CONCRETE", "STEEL", "WOOD", "MASONRY", "MIXED", "NONE"]).optional(),
+          structureType: z
+            .enum([
+              "REINFORCED_CONCRETE",
+              "STEEL",
+              "WOOD",
+              "MASONRY",
+              "MIXED",
+              "NONE",
+            ])
+            .optional(),
           structureDescription: z.string().optional(),
-          masonryType: z.enum(["BRICK", "CONCRETE_BLOCK", "ADOBE", "BAHAREQUE", "PREFABRICATED_PANELS", "NONE"]).optional(),
+          masonryType: z
+            .enum([
+              "BRICK",
+              "CONCRETE_BLOCK",
+              "ADOBE",
+              "BAHAREQUE",
+              "PREFABRICATED_PANELS",
+              "NONE",
+            ])
+            .optional(),
           masonryDescription: z.string().optional(),
-          floorType: z.enum(["REINFORCED_CONCRETE_SLAB", "STEEL_BEAMS", "WOOD_JOISTS", "NONE"]).optional(),
+          floorType: z
+            .enum([
+              "REINFORCED_CONCRETE_SLAB",
+              "STEEL_BEAMS",
+              "WOOD_JOISTS",
+              "NONE",
+            ])
+            .optional(),
           floorDescription: z.string().optional(),
-          exteriorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
-          interiorCoating: z.enum(["CERAMIC", "PORCELAIN", "NATURAL_STONE", "PAINT", "PLASTER", "STUCCO", "WALLPAPER", "WOOD_PANELING", "NONE"]).optional(),
+          exteriorCoating: z
+            .enum([
+              "CERAMIC",
+              "PORCELAIN",
+              "NATURAL_STONE",
+              "PAINT",
+              "PLASTER",
+              "STUCCO",
+              "WALLPAPER",
+              "WOOD_PANELING",
+              "NONE",
+            ])
+            .optional(),
+          interiorCoating: z
+            .enum([
+              "CERAMIC",
+              "PORCELAIN",
+              "NATURAL_STONE",
+              "PAINT",
+              "PLASTER",
+              "STUCCO",
+              "WALLPAPER",
+              "WOOD_PANELING",
+              "NONE",
+            ])
+            .optional(),
           coatingDescription: z.string().optional(),
-          carpentryType: z.enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"]).optional(),
+          carpentryType: z
+            .enum(["WOOD", "ALUMINUM", "PVC", "METAL", "NONE"])
+            .optional(),
           carpentryDescription: z.string().optional(),
           locksmithType: z.string().optional(),
           locksmithDescription: z.string().optional(),
-          glazingType: z.enum(["CLEAR_GLASS", "TEMPERED_GLASS", "LAMINATED_GLASS", "DOUBLE_GLAZED", "NONE"]).optional(),
+          glazingType: z
+            .enum([
+              "CLEAR_GLASS",
+              "TEMPERED_GLASS",
+              "LAMINATED_GLASS",
+              "DOUBLE_GLAZED",
+              "NONE",
+            ])
+            .optional(),
           glazingDescription: z.string().optional(),
-          plumbingType: z.enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"]).optional(),
+          plumbingType: z
+            .enum(["PVC", "COPPER", "GALVANIZED_STEEL", "PEX", "NONE"])
+            .optional(),
           plumbingDescription: z.string().optional(),
-          electricalType: z.enum(["CONDUIT", "ARMORED_CABLE", "NON_METALLIC_CABLE", "EXPOSED", "NONE"]).optional(),
+          electricalType: z
+            .enum([
+              "CONDUIT",
+              "ARMORED_CABLE",
+              "NON_METALLIC_CABLE",
+              "EXPOSED",
+              "NONE",
+            ])
+            .optional(),
           electricalDescription: z.string().optional(),
           electricalCapacity: z.string().optional(),
-          
+
           // Construction Details (existing)
           roofMaterial: z.string().optional(),
           wallMaterial: z.string().optional(),
           floorMaterial: z.string().optional(),
-          conservationState: z.enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"]).optional(),
-          
+          conservationState: z
+            .enum(["EXCELLENT", "GOOD", "REGULAR", "POOR", "VERY_POOR"])
+            .optional(),
+
           // Legal Information
           legalOwner: z.string().optional(),
           cadastralNumber: z.string().optional(),
           registrationNumber: z.string().optional(),
           hasLiens: z.boolean().optional(),
           hasEncumbrances: z.boolean().optional(),
-          
+
           // Optional: if provided, will update existing property instead of creating new
           existingPropertyId: optionalNumber,
-        })
+        }),
       ),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -611,7 +957,7 @@ export const importProperties = baseProcedure
 
     for (let i = 0; i < input.properties.length; i++) {
       const propertyData = input.properties[i];
-      
+
       try {
         if (propertyData.existingPropertyId) {
           // Update existing property
