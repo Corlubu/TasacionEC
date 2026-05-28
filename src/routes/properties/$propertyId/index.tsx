@@ -258,13 +258,25 @@ function PropertyDetailPage() {
               </button>
             </div>
             <PropertyForm
-              // Convertimos los null de Prisma a undefined para que React Hook Form
-              // no se confunda y los reemplace correctamente con los valores vacíos del formulario
               initialValues={Object.fromEntries(
-                Object.entries(property).map(([key, value]) => [
-                  key,
-                  value === null ? undefined : value,
-                ]),
+                Object.entries(property).map(([key, value]) => {
+                  // 1. Limpiamos los null de la base de datos
+                  if (value === null) return [key, undefined];
+
+                  // 2. Recortamos las fechas para que el <input type="date"> no colapse
+                  if (
+                    (key === "inspectionDate" || key === "requiredDate") &&
+                    value
+                  ) {
+                    const dateString =
+                      typeof value === "string"
+                        ? value
+                        : (value as Date).toISOString();
+                    return [key, dateString.split("T")[0]];
+                  }
+
+                  return [key, value];
+                }),
               )}
               onSubmit={handleUpdateProperty}
               onCancel={() => setIsEditing(false)}

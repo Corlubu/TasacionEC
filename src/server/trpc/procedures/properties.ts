@@ -58,6 +58,30 @@ export const createProperty = baseProcedure
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
 
+      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      propertyRegime: z
+        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
+        .optional(),
+      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      personPresentAtInspection: z.string().optional(),
+      saturationIndex: optionalNumber,
+      socioeconomicLevel: z
+        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
+        .optional(),
+      cos: optionalNumber,
+      cus: optionalNumber,
+      easementsAndRestrictions: z.string().optional(),
+      panoramicCharacteristics: z.string().optional(),
+      rentableUnits: optionalNumber,
+      aliquotPercentage: optionalNumber,
+      roofCondition: z.string().optional(),
+      fenceCondition: z.string().optional(),
+      ceilingCondition: z.string().optional(),
+      stairsCondition: z.string().optional(),
+      numberOfFacades: optionalNumber,
+      hasMaintenanceLogs: z.boolean().optional(),
+      maintenanceNotes: z.string().optional(),
+
       // Boundaries - using optionalNumber to handle NaN
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
@@ -201,30 +225,6 @@ export const createProperty = baseProcedure
         .optional(),
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
-
-      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
-      propertyRegime: z
-        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
-        .optional(),
-      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
-      personPresentAtInspection: z.string().optional(),
-      saturationIndex: optionalNumber,
-      socioeconomicLevel: z
-        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
-        .optional(),
-      cos: optionalNumber,
-      cus: optionalNumber,
-      easementsAndRestrictions: z.string().optional(),
-      panoramicCharacteristics: z.string().optional(),
-      rentableUnits: optionalNumber,
-      aliquotPercentage: optionalNumber,
-      roofCondition: z.string().optional(),
-      fenceCondition: z.string().optional(),
-      ceilingCondition: z.string().optional(),
-      stairsCondition: z.string().optional(),
-      numberOfFacades: optionalNumber,
-      hasMaintenanceLogs: z.boolean().optional(),
-      maintenanceNotes: z.string().optional(),
 
       // Construction Details (existing - mantener para compatibilidad)
       roofMaterial: z.string().optional(),
@@ -450,6 +450,30 @@ export const updateProperty = baseProcedure
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
 
+      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      propertyRegime: z
+        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
+        .optional(),
+      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      personPresentAtInspection: z.string().optional(),
+      saturationIndex: optionalNumber,
+      socioeconomicLevel: z
+        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
+        .optional(),
+      cos: optionalNumber,
+      cus: optionalNumber,
+      easementsAndRestrictions: z.string().optional(),
+      panoramicCharacteristics: z.string().optional(),
+      rentableUnits: optionalNumber,
+      aliquotPercentage: optionalNumber,
+      roofCondition: z.string().optional(),
+      fenceCondition: z.string().optional(),
+      ceilingCondition: z.string().optional(),
+      stairsCondition: z.string().optional(),
+      numberOfFacades: optionalNumber,
+      hasMaintenanceLogs: z.boolean().optional(),
+      maintenanceNotes: z.string().optional(),
+
       // Boundaries - using optionalNumber to handle NaN
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
@@ -593,30 +617,6 @@ export const updateProperty = baseProcedure
         .optional(),
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
-
-      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
-      propertyRegime: z
-        .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
-        .optional(),
-      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
-      personPresentAtInspection: z.string().optional(),
-      saturationIndex: optionalNumber,
-      socioeconomicLevel: z
-        .enum(["HIGH", "MEDIUM_HIGH", "MEDIUM", "MEDIUM_LOW", "LOW"])
-        .optional(),
-      cos: optionalNumber,
-      cus: optionalNumber,
-      easementsAndRestrictions: z.string().optional(),
-      panoramicCharacteristics: z.string().optional(),
-      rentableUnits: optionalNumber,
-      aliquotPercentage: optionalNumber,
-      roofCondition: z.string().optional(),
-      fenceCondition: z.string().optional(),
-      ceilingCondition: z.string().optional(),
-      stairsCondition: z.string().optional(),
-      numberOfFacades: optionalNumber,
-      hasMaintenanceLogs: z.boolean().optional(),
-      maintenanceNotes: z.string().optional(),
 
       // Construction Details (existing)
       roofMaterial: z.string().optional(),
