@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export const Route = createFileRoute("/costs")({
+export const Route = createFileRoute("/costs/")({
   component: CostsPage,
 });
 

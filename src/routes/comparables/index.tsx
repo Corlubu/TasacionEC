@@ -29,7 +29,7 @@ const searchParamsSchema = z.object({
   radius: z.number().min(0.1).max(100).default(5),
 });
 
-export const Route = createFileRoute("/comparables")({
+export const Route = createFileRoute("/comparables/")({
   component: ComparablesPage,
   validateSearch: zodValidator(searchParamsSchema),
 });

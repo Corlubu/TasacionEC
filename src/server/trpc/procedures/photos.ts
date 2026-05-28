@@ -2,9 +2,14 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { baseProcedure } from "../main";
 import { db } from "~/server/db";
-import { minioClient, minioBaseUrl } from "~/server/minio";
+// Importamos el nuevo cliente S3 y la base URL desde nuestro archivo minio.ts refactorizado
+import { s3Client, minioBaseUrl } from "~/server/minio";
 import jwt from "jsonwebtoken";
 import { env } from "~/server/env";
+
+// Importamos las utilidades oficiales de AWS SDK
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 async function getUserIdFromToken(token: string): Promise<number> {
   try {
@@ -26,8 +31,15 @@ export const generateUploadUrl = baseProcedure
       propertyId: z.number(),
       fileName: z.string(),
       fileType: z.string(),
-      category: z.enum(["facade", "interior", "kitchen", "bathroom", "damage", "document"]),
-    })
+      category: z.enum([
+        "facade",
+        "interior",
+        "kitchen",
+        "bathroom",
+        "damage",
+        "document",
+      ]),
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -48,12 +60,14 @@ export const generateUploadUrl = baseProcedure
     const timestamp = Date.now();
     const objectKey = `property-${input.propertyId}/${timestamp}-${input.fileName}`;
 
-    // Generate presigned URL (valid for 10 minutes)
-    const uploadUrl = await minioClient.presignedPutObject(
-      "property-photos",
-      objectKey,
-      600
-    );
+    // Generar URL prefirmada usando AWS SDK (válida por 10 minutos = 600 segundos)
+    const command = new PutObjectCommand({
+      Bucket: "property-photos",
+      Key: objectKey,
+      ContentType: input.fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
 
     return {
       uploadUrl,
@@ -73,7 +87,7 @@ export const confirmPhotoUpload = baseProcedure
       longitude: z.number().optional(),
       timestamp: z.string().optional(),
       deviceInfo: z.string().optional(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -93,7 +107,7 @@ export const confirmPhotoUpload = baseProcedure
     // Generate permanent URL
     const url = `${minioBaseUrl}/property-photos/${input.objectKey}`;
 
-    // Save photo metadata
+    // Save photo metadata (Mantenemos el nombre 'minioKey' por compatibilidad con la BD, aunque ahora sea S3)
     const photo = await db.propertyPhoto.create({
       data: {
         propertyId: input.propertyId,
@@ -128,7 +142,7 @@ export const getPropertyPhotos = baseProcedure
     z.object({
       token: z.string(),
       propertyId: z.number(),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -158,14 +172,24 @@ export const generateBatchUploadUrls = baseProcedure
     z.object({
       token: z.string(),
       propertyId: z.number(),
-      files: z.array(
-        z.object({
-          fileName: z.string(),
-          fileType: z.string(),
-          category: z.enum(["facade", "interior", "kitchen", "bathroom", "damage", "document"]),
-        })
-      ).min(1).max(20),
-    })
+      files: z
+        .array(
+          z.object({
+            fileName: z.string(),
+            fileType: z.string(),
+            category: z.enum([
+              "facade",
+              "interior",
+              "kitchen",
+              "bathroom",
+              "damage",
+              "document",
+            ]),
+          }),
+        )
+        .min(1)
+        .max(20),
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -196,18 +220,22 @@ export const generateBatchUploadUrls = baseProcedure
       });
     }
 
-    // Generate presigned URLs for all files
+    // Generar URLs prefirmadas para todos los archivos usando AWS SDK
     const uploadUrls = await Promise.all(
       input.files.map(async (file) => {
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(7);
         const objectKey = `property-${input.propertyId}/${timestamp}-${randomId}-${file.fileName}`;
 
-        const uploadUrl = await minioClient.presignedPutObject(
-          "property-photos",
-          objectKey,
-          600
-        );
+        const command = new PutObjectCommand({
+          Bucket: "property-photos",
+          Key: objectKey,
+          ContentType: file.fileType,
+        });
+
+        const uploadUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 600,
+        });
 
         return {
           fileName: file.fileName,
@@ -215,7 +243,7 @@ export const generateBatchUploadUrls = baseProcedure
           uploadUrl,
           objectKey,
         };
-      })
+      }),
     );
 
     return {
@@ -230,7 +258,7 @@ export const deletePropertyPhoto = baseProcedure
     z.object({
       token: z.string(),
       photoId: z.number(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -271,11 +299,15 @@ export const deletePropertyPhoto = baseProcedure
       where: { id: input.photoId },
     });
 
-    // Optionally delete from MinIO (commented out to preserve data)
+    // Opcional: Eliminar de Supabase/AWS S3 usando el SDK
     // try {
-    //   await minioClient.removeObject("property-photos", photo.minioKey);
+    //   const command = new DeleteObjectCommand({
+    //     Bucket: "property-photos",
+    //     Key: photo.minioKey,
+    //   });
+    //   await s3Client.send(command);
     // } catch (error) {
-    //   console.error("Error deleting from MinIO:", error);
+    //   console.error("Error deleting from Storage:", error);
     // }
 
     // Create audit log

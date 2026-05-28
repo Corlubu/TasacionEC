@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export const Route = createFileRoute("/reports")({
+export const Route = createFileRoute("/reports/")({
   component: ReportsPage,
 });
 
