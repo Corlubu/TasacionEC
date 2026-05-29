@@ -829,6 +829,8 @@ export const updateProperty = baseProcedure
     // Verificamos si realmente hay datos de solicitud para procesar
     const hasRequestData = Object.keys(requestData).length > 0;
 
+    console.log("📥 2. BACKEND RECIBIÓ SOLICITUD:", requestData);
+    console.log("❓ ¿Hará el Upsert?:", hasRequestData);
     // 3. Ejecutamos el Update con el upsert condicional
     const property = await db.property.update({
       where: { id: input.propertyId },

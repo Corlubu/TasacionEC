@@ -233,6 +233,7 @@ model ValuationRequest {
   // Purpose
   purpose               ValuationPurpose
   purposeDescription    String?  @db.Text // Descripción adicional si es necesario
+  valuationObject       String?
 
   // Loan Information (if applicable)
   requestedLoanAmount   Float?

@@ -284,12 +284,22 @@ export function PropertyForm({
 
   const propertyType = watch("type");
 
-  // Helper function to clean NaN values from form data
+  // Helper function to clean NaN and empty strings from form data
   const cleanFormData = (data: PropertyFormData): PropertyFormData => {
-    const cleaned = { ...data };
+    // Creamos una copia flexible (any) para poder usar 'delete' sin que TypeScript se queje
+    const cleaned: any = { ...data };
 
-    // Convert NaN to undefined for all number fields
-    const numberFields: (keyof PropertyFormData)[] = [
+    // 1. ELIMINACIÓN ABSOLUTA DE STRINGS VACÍOS
+    Object.keys(cleaned).forEach((key) => {
+      if (typeof cleaned[key] === "string" && cleaned[key].trim() === "") {
+        // Usar delete elimina completamente la llave del objeto,
+        // garantizando que tRPC no envíe un string vacío al backend
+        delete cleaned[key];
+      }
+    });
+
+    // 2. ELIMINACIÓN ABSOLUTA DE NÚMEROS INVÁLIDOS (NaN)
+    const numberFields = [
       "landArea",
       "builtArea",
       "areaAccordingToDeed",
@@ -315,18 +325,17 @@ export function PropertyForm({
     ];
 
     numberFields.forEach((field) => {
-      const value = cleaned[field];
-      if (typeof value === "number" && isNaN(value)) {
-        // @ts-ignore - we know these are optional number fields
-        cleaned[field] = undefined;
+      if (typeof cleaned[field] === "number" && isNaN(cleaned[field])) {
+        delete cleaned[field];
       }
     });
 
-    return cleaned;
+    return cleaned as PropertyFormData;
   };
 
   const handleFormSubmit = (data: PropertyFormData) => {
     const cleanedData = cleanFormData(data);
+    console.log("🚀 1. SALIENDO DEL FORMULARIO HACIA EL BACKEND:", cleanedData);
     onSubmit(cleanedData);
   };
 
