@@ -743,6 +743,8 @@ export const updateProperty = baseProcedure
       registrationNumber: z.string().optional(),
       hasLiens: z.boolean().optional(),
       hasEncumbrances: z.boolean().optional(),
+
+      status: z.string().optional(),
     }),
   )
   .mutation(async ({ input }) => {

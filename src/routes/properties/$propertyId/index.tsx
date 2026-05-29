@@ -17,6 +17,7 @@ import {
   Save,
   X,
   Download,
+  CheckCircle, // 👈 Ícono nuevo importado para el botón de completar
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -107,11 +108,28 @@ function PropertyDetailPage() {
     });
   };
 
+  // 👈 NUEVA FUNCIÓN PARA FINALIZAR EL AVALÚO
+  const handleCompleteProperty = () => {
+    if (!property) return;
+    if (
+      window.confirm(
+        "¿Estás seguro de marcar este avalúo como FINALIZADO? Ya no podrás editar los datos ni regenerar el reporte.",
+      )
+    ) {
+      updatePropertyMutation.mutate({
+        token: token!,
+        propertyId: property.id,
+        status: "COMPLETED",
+      });
+    }
+  };
+
   const handleDownloadPDF = () => {
     if (!report) return;
     toast.loading("Generando PDF profesional...", { duration: 2000 });
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
+
   // MAGIA ARQUITECTÓNICA ACTUALIZADA
   const initialFormValues = useMemo(() => {
     if (!property) return undefined;
@@ -199,8 +217,15 @@ function PropertyDetailPage() {
                   {property.city}, {property.state}
                 </span>
               </div>
+              {/* Etiqueta visual para indicar que está completado */}
+              {property.status === "COMPLETED" && (
+                <span className="mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
+                  Avalúo Finalizado
+                </span>
+              )}
             </div>
             <div className="flex items-center space-x-3">
+              {/* Solo se puede editar si está en DRAFT */}
               {property.status === "DRAFT" && !isEditing && (
                 <button
                   onClick={() => setIsEditing(true)}
@@ -210,7 +235,9 @@ function PropertyDetailPage() {
                   <span>Editar</span>
                 </button>
               )}
-              {!report && !isEditing && (
+
+              {/* Botón para generar reporte (solo si NO hay reporte y está en DRAFT) */}
+              {!report && property.status === "DRAFT" && !isEditing && (
                 <button
                   onClick={handleGenerateReport}
                   disabled={generateReportMutation.isPending}
@@ -227,6 +254,22 @@ function PropertyDetailPage() {
                       <span>Generar Reporte con IA</span>
                     </>
                   )}
+                </button>
+              )}
+
+              {/* 👈 NUEVO: Botón para Finalizar el avalúo (Aparece si ya hay reporte y sigue en DRAFT) */}
+              {property.status === "DRAFT" && report && !isEditing && (
+                <button
+                  onClick={handleCompleteProperty}
+                  disabled={updatePropertyMutation.isPending}
+                  className="flex items-center space-x-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updatePropertyMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-5 w-5" />
+                  )}
+                  <span>Finalizar Avalúo</span>
                 </button>
               )}
             </div>
