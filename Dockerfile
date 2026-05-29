@@ -42,6 +42,15 @@ RUN npx tsr generate
 # 9. Descargamos el navegador invisible de Playwright (Chromium)
 RUN npx playwright install chromium
 
+# --- NUEVO: VARIABLES TEMPORALES PARA PASAR LA VALIDACIÓN DE ZOD ---
+ENV NODE_ENV="production"
+ENV ADMIN_PASSWORD="dummy_password_temporal"
+ENV JWT_SECRET="dummy_secret_temporal"
+ENV GEMINI_API_KEY="dummy_key_temporal"
+# (Añade esta también por si la pide: )
+ENV DATABASE_URL="postgresql://postgres:dummy@dummy:5432/dummy"
+# ------------------------------------------------------------------
+
 # 10. Construimos la aplicación
 RUN pnpm run build
 
