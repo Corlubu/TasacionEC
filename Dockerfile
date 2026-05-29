@@ -25,17 +25,18 @@ WORKDIR /app
 # 4. Instalamos pnpm globalmente
 RUN npm install -g pnpm
 
-# 5. Copiamos solo los archivos de dependencias primero (para optimizar caché)
+# 5. Copiamos los archivos de dependencias Y la carpeta prisma
 COPY package.json pnpm-lock.yaml* ./
+COPY prisma ./prisma
 
-# 6. Instalamos todas las dependencias
+# 6. Instalamos todas las dependencias (ahora el postinstall encontrará el esquema)
 RUN pnpm install
 
 # 7. Copiamos el resto de tu código al contenedor
 COPY . .
 
 # 8. Generamos el cliente de la Base de Datos (Prisma)
-RUN npx prisma generate --schema=./prisma/schema.prisma
+RUN npx prisma generate
 
 # 9. Descargamos el navegador invisible de Playwright (Chromium)
 RUN npx playwright install chromium
