@@ -258,6 +258,7 @@ export function PropertyForm({
 
   // Efecto para rehidratar el formulario cuando initialValues cambia (ej: los datos llegan del backend)
   useEffect(() => {
+    console.log("🚨 2. EL FORMULARIO RECIBIÓ ESTO:", initialValues);
     if (initialValues) {
       reset({
         type: initialValues.type || "HOUSE",

@@ -124,6 +124,40 @@ export const createProperty = baseProcedure
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
 
+      // ========== CAMPOS DE SOLICITUD (ValuationRequest) ==========
+      financialInstitution: z.string().optional(),
+      branchOffice: z.string().optional(),
+      creditOfficer: z.string().optional(),
+      clientName: z.string().optional(),
+      clientId: z.string().optional(),
+      clientPhone: z.string().optional(),
+      clientEmail: z.string().optional(),
+      legalOwnerName: z.string().optional(),
+      legalOwnerId: z.string().optional(),
+      purpose: z
+        .enum([
+          "MORTGAGE_LOAN",
+          "PURCHASE_SALE",
+          "INSURANCE",
+          "LEGAL_LITIGATION",
+          "INHERITANCE",
+          "ASSET_VALUATION",
+          "OTHER",
+        ])
+        .optional(),
+      purposeDescription: z.string().optional(),
+      valuationObject: z
+        .enum([
+          "MARKET_VALUE",
+          "LIQUIDATION_VALUE",
+          "RESCUE_VALUE",
+          "SCRAP_VALUE",
+        ])
+        .optional(),
+      requestedLoanAmount: optionalNumber,
+      loanTerm: optionalNumber,
+      requiredDate: z.string().optional(),
+
       // Technical Specifications
       foundationType: z
         .enum([
@@ -245,13 +279,56 @@ export const createProperty = baseProcedure
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
 
-    const { token, ...propertyData } = input;
+    const {
+      token,
+      financialInstitution,
+      branchOffice,
+      creditOfficer,
+      clientName,
+      clientId,
+      clientPhone,
+      clientEmail,
+      legalOwnerName,
+      legalOwnerId,
+      purpose,
+      purposeDescription,
+      valuationObject,
+      requestedLoanAmount,
+      loanTerm,
+      requiredDate,
+      ...propertyData
+    } = input;
 
+    // Create the Property and the ValuationRequest in a single transaction
     const property = await db.property.create({
       data: {
         ...propertyData,
         userId,
         status: "DRAFT",
+        valuationRequest:
+          financialInstitution || clientName || purpose
+            ? {
+                create: {
+                  financialInstitution,
+                  branchOffice,
+                  creditOfficer,
+                  clientName,
+                  clientId,
+                  clientPhone,
+                  clientEmail,
+                  legalOwnerName,
+                  legalOwnerId,
+                  purpose,
+                  purposeDescription,
+                  valuationObject,
+                  requestedLoanAmount,
+                  loanTerm,
+                  requiredDate: requiredDate
+                    ? new Date(requiredDate)
+                    : undefined,
+                },
+              }
+            : undefined,
       },
     });
 
@@ -454,7 +531,7 @@ export const updateProperty = baseProcedure
       propertyRegime: z
         .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
         .optional(),
-      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      inspectionDate: z.coerce.date().optional(),
       personPresentAtInspection: z.string().optional(),
       saturationIndex: optionalNumber,
       socioeconomicLevel: z
@@ -515,6 +592,40 @@ export const updateProperty = baseProcedure
       hasInternet: z.boolean().optional(),
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
+
+      // ========== CAMPOS DE SOLICITUD (ValuationRequest) ==========
+      financialInstitution: z.string().optional(),
+      branchOffice: z.string().optional(),
+      creditOfficer: z.string().optional(),
+      clientName: z.string().optional(),
+      clientId: z.string().optional(),
+      clientPhone: z.string().optional(),
+      clientEmail: z.string().optional(),
+      legalOwnerName: z.string().optional(),
+      legalOwnerId: z.string().optional(),
+      purpose: z
+        .enum([
+          "MORTGAGE_LOAN",
+          "PURCHASE_SALE",
+          "INSURANCE",
+          "LEGAL_LITIGATION",
+          "INHERITANCE",
+          "ASSET_VALUATION",
+          "OTHER",
+        ])
+        .optional(),
+      purposeDescription: z.string().optional(),
+      valuationObject: z
+        .enum([
+          "MARKET_VALUE",
+          "LIQUIDATION_VALUE",
+          "RESCUE_VALUE",
+          "SCRAP_VALUE",
+        ])
+        .optional(),
+      requestedLoanAmount: optionalNumber,
+      loanTerm: optionalNumber,
+      requiredDate: z.string().optional(),
 
       // Technical Specifications
       foundationType: z
@@ -665,11 +776,75 @@ export const updateProperty = baseProcedure
       });
     }
 
-    // Update property
-    const { token, propertyId, ...updateData } = input;
+    // Separamos los datos del Property y los del ValuationRequest
+    const {
+      token,
+      propertyId,
+      financialInstitution,
+      branchOffice,
+      creditOfficer,
+      clientName,
+      clientId,
+      clientPhone,
+      clientEmail,
+      legalOwnerName,
+      legalOwnerId,
+      purpose,
+      purposeDescription,
+      valuationObject,
+      requestedLoanAmount,
+      loanTerm,
+      requiredDate,
+      ...updateData
+    } = input;
+
+    // 1. Limpiamos updateData de valores undefined
+    const cleanedUpdateData = Object.fromEntries(
+      Object.entries(updateData).filter(([_, v]) => v !== undefined),
+    );
+
+    // 2. Preparamos los datos de la solicitud y los limpiamos
+    const rawRequestData = {
+      financialInstitution,
+      branchOffice,
+      creditOfficer,
+      clientName,
+      clientId,
+      clientPhone,
+      clientEmail,
+      legalOwnerName,
+      legalOwnerId,
+      purpose,
+      purposeDescription,
+      valuationObject,
+      requestedLoanAmount,
+      loanTerm,
+      requiredDate: requiredDate ? new Date(requiredDate) : undefined,
+    };
+
+    const requestData = Object.fromEntries(
+      Object.entries(rawRequestData).filter(([_, v]) => v !== undefined),
+    );
+
+    // Verificamos si realmente hay datos de solicitud para procesar
+    const hasRequestData = Object.keys(requestData).length > 0;
+
+    // 3. Ejecutamos el Update con el upsert condicional
     const property = await db.property.update({
       where: { id: input.propertyId },
-      data: updateData,
+      data: {
+        ...cleanedUpdateData,
+        ...(hasRequestData
+          ? {
+              valuationRequest: {
+                upsert: {
+                  create: requestData,
+                  update: requestData,
+                },
+              },
+            }
+          : {}),
+      },
     });
 
     // Create audit log
@@ -680,7 +855,7 @@ export const updateProperty = baseProcedure
         entity: "Property",
         entityId: property.id,
         propertyId: property.id,
-        metadata: JSON.stringify(updateData),
+        metadata: JSON.stringify(cleanedUpdateData),
       },
     });
 
