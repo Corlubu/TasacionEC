@@ -320,7 +320,7 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5):
 Escribe en español, tono profesional, adecuado para documentación bancaria. Sé específico y analítico, referenciando los datos proporcionados.`;
 
       const { text: environmentDescription } = await generateText({
-        model: google("gemini-1.5-pro-latest"),
+        model: google("gemini-3.5-flash"),
         prompt: environmentPrompt,
       });
 
@@ -445,7 +445,7 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5):
 Escribe en español, tono profesional, adecuado para documentación bancaria. Sé minucioso y analítico.`;
 
       const { text: technicalDescription } = await generateText({
-        model: google("gemini-1.5-pro-latest"),
+        model: google("gemini-3.5-flash"),
         prompt: technicalPrompt,
       });
 
@@ -702,7 +702,7 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5 y Numeral 3.5.6)
 Escribe en español, tono profesional, adecuado para documentación bancaria.`;
 
       const { text: valueJustification } = await generateText({
-        model: google("gemini-1.5-pro-latest"),
+        model: google("gemini-3.5-flash"),
         prompt: justificationPrompt,
       });
 

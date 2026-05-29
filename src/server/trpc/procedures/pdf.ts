@@ -2,7 +2,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { baseProcedure } from "../main";
 import { db } from "~/server/db";
-import { minioClient, minioBaseUrl } from "~/server/minio";
+import { s3Client, minioBaseUrl } from "~/server/minio";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import jwt from "jsonwebtoken";
 import { env } from "~/server/env";
 import crypto from "crypto";
@@ -788,14 +789,14 @@ export const generatePDF = baseProcedure
       // Upload to MinIO
       const objectKey = `reports/report-${report.id}-${Date.now()}.pdf`;
       
-      await minioClient.putObject(
-        "property-photos", // Using same bucket for simplicity
-        objectKey,
-        pdfBuffer,
-        pdfBuffer.length,
-        {
-          "Content-Type": "application/pdf",
-        }
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: "property-photos",
+          Key: objectKey,
+          Body: pdfBuffer,
+          ContentType: "application/pdf",
+          ContentLength: pdfBuffer.length,
+        })
       );
       
       const pdfUrl = `${minioBaseUrl}/property-photos/${objectKey}`;
