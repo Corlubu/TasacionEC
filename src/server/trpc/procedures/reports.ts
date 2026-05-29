@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { baseProcedure } from "../main";
 import { db } from "~/server/db";
 import { generateText, generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import jwt from "jsonwebtoken";
 import { env } from "~/server/env";
 import crypto from "crypto";
@@ -30,30 +30,30 @@ async function getUserIdFromToken(token: string): Promise<number> {
 function calculateRossHeideckeDepreciation(
   chronologicalAge: number,
   totalUsefulLife: number,
-  conservationState: string
+  conservationState: string,
 ): { depreciationPercent: number; remainingUsefulLife: number } {
   // State factors based on conservation state
   const stateFactors: Record<string, number> = {
-    EXCELLENT: 0.00,  // 0% depreciation factor
-    GOOD: 0.32,       // 32% depreciation factor
-    REGULAR: 0.50,    // 50% depreciation factor
-    POOR: 0.72,       // 72% depreciation factor
-    VERY_POOR: 0.90,  // 90% depreciation factor
+    EXCELLENT: 0.0, // 0% depreciation factor
+    GOOD: 0.32, // 32% depreciation factor
+    REGULAR: 0.5, // 50% depreciation factor
+    POOR: 0.72, // 72% depreciation factor
+    VERY_POOR: 0.9, // 90% depreciation factor
   };
 
-  const stateFactor = stateFactors[conservationState] || 0.50;
-  
+  const stateFactor = stateFactors[conservationState] || 0.5;
+
   // Prevent division by zero
   if (totalUsefulLife === 0) {
     return { depreciationPercent: 100, remainingUsefulLife: 0 };
   }
 
   const ageRatio = chronologicalAge / totalUsefulLife;
-  
+
   // Ross-Heidecke formula
   const depreciationPercent = Math.min(
     100,
-    ageRatio * (1 + ageRatio) * stateFactor * 50
+    ageRatio * (1 + ageRatio) * stateFactor * 50,
   );
 
   // Calculate remaining useful life considering both age and conservation state
@@ -73,22 +73,22 @@ function calculateRossHeideckeDepreciation(
 function calculateFittoCorviniDepreciation(
   chronologicalAge: number,
   totalUsefulLife: number,
-  conservationState: string
+  conservationState: string,
 ): { depreciationPercent: number; remainingUsefulLife: number } {
   // State adjustment factors for effective age
   const stateAdjustments: Record<string, number> = {
-    EXCELLENT: 0.80,  // Property ages 20% slower
-    GOOD: 1.00,       // Normal aging
-    REGULAR: 1.20,    // Property ages 20% faster
-    POOR: 1.50,       // Property ages 50% faster
-    VERY_POOR: 2.00,  // Property ages twice as fast
+    EXCELLENT: 0.8, // Property ages 20% slower
+    GOOD: 1.0, // Normal aging
+    REGULAR: 1.2, // Property ages 20% faster
+    POOR: 1.5, // Property ages 50% faster
+    VERY_POOR: 2.0, // Property ages twice as fast
   };
 
-  const stateAdjustment = stateAdjustments[conservationState] || 1.00;
-  
+  const stateAdjustment = stateAdjustments[conservationState] || 1.0;
+
   // Calculate effective age considering conservation state
   const effectiveAge = chronologicalAge * stateAdjustment;
-  
+
   // Prevent division by zero
   if (totalUsefulLife === 0) {
     return { depreciationPercent: 100, remainingUsefulLife: 0 };
@@ -96,9 +96,12 @@ function calculateFittoCorviniDepreciation(
 
   const remainingUsefulLife = Math.max(0, totalUsefulLife - effectiveAge);
   const remainingRatio = remainingUsefulLife / totalUsefulLife;
-  
+
   // Fitto-Corvini formula
-  const depreciationPercent = Math.min(100, (1 - Math.pow(remainingRatio, 2)) * 100);
+  const depreciationPercent = Math.min(
+    100,
+    (1 - Math.pow(remainingRatio, 2)) * 100,
+  );
 
   return {
     depreciationPercent: Math.round(depreciationPercent * 100) / 100,
@@ -112,14 +115,14 @@ function calculateFittoCorviniDepreciation(
 function determineTotalUsefulLife(
   propertyType: string,
   structureType?: string,
-  conservationState?: string
+  conservationState?: string,
 ): number {
   // Base useful life by property type (years)
   const baseUsefulLife: Record<string, number> = {
     HOUSE: 50,
     APARTMENT: 60,
     COMMERCIAL: 40,
-    LAND: 0,  // Land doesn't depreciate
+    LAND: 0, // Land doesn't depreciate
     INDUSTRIAL: 35,
   };
 
@@ -145,7 +148,11 @@ function determineTotalUsefulLife(
 async function calculateAdditionalWorksValue(propertyId: number): Promise<{
   totalReplacementCost: number;
   totalDepreciatedValue: number;
-  works: Array<{ name: string; replacementCost: number; depreciatedValue: number }>;
+  works: Array<{
+    name: string;
+    replacementCost: number;
+    depreciatedValue: number;
+  }>;
 }> {
   const additionalWorks = await db.additionalWork.findMany({
     where: { propertyId },
@@ -158,7 +165,7 @@ async function calculateAdditionalWorksValue(propertyId: number): Promise<{
   for (const work of additionalWorks) {
     totalReplacementCost += work.replacementCost;
     totalDepreciatedValue += work.depreciatedValue;
-    
+
     works.push({
       name: work.name,
       replacementCost: work.replacementCost,
@@ -180,13 +187,15 @@ export const generateReport = baseProcedure
     z.object({
       token: z.string(),
       propertyId: z.number(),
-      depreciationMethod: z.enum(["Ross-Heidecke", "Fitto-Corvini", "Lineal"]).default("Ross-Heidecke"),
+      depreciationMethod: z
+        .enum(["Ross-Heidecke", "Fitto-Corvini", "Lineal"])
+        .default("Ross-Heidecke"),
       // Optional: Manual overrides for valuation
       cadastralValue: z.number().optional(),
       estimatedMonthlyRent: z.number().optional(),
       operatingExpensesPercent: z.number().optional(), // As percentage of gross income
       capitalizationRate: z.number().optional(), // As percentage
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -227,7 +236,7 @@ export const generateReport = baseProcedure
 
     try {
       const riskAssessment = property.riskAssessments[0];
-      
+
       // ========== GENERATE ENVIRONMENT DESCRIPTION WITH STRUCTURED DATA ==========
       const environmentPrompt = `You are a professional real estate appraiser writing for a bank valuation report in Ecuador (complying with Superintendencia de Bancos regulations).
 
@@ -264,7 +273,9 @@ SERVICIOS PÚBLICOS DISPONIBLES:
 - Alumbrado Público: ${property.hasStreetLighting ? "✓" : "✗"}
 - Recolección de Basura: ${property.hasGarbageCollection ? "✓" : "✗"}
 
-${riskAssessment ? `EVALUACIÓN DE RIESGOS:
+${
+  riskAssessment
+    ? `EVALUACIÓN DE RIESGOS:
 - Riesgo General: ${riskAssessment.overallRisk}
 - Riesgo de Inundación: ${riskAssessment.floodRisk}
 - Riesgo Sísmico: ${riskAssessment.seismicRisk}
@@ -273,13 +284,19 @@ ${riskAssessment ? `EVALUACIÓN DE RIESGOS:
 - Cercanía a Zonas de Alto Riesgo: ${riskAssessment.nearHighRiskZone ? `Sí - ${riskAssessment.highRiskZoneType} (${riskAssessment.distanceToHighRiskZone}m)` : "No"}
 - Puntos de Interés Cercanos: ${riskAssessment.nearbyPOIs.join(", ")}
 - Calidad de Acceso: ${riskAssessment.accessQuality || "No evaluada"}
-` : ""}
+`
+    : ""
+}
 
-${property.comparables.length > 0 ? `CONTEXTO DE MERCADO - ${property.comparables.length} Propiedades Comparables:
+${
+  property.comparables.length > 0
+    ? `CONTEXTO DE MERCADO - ${property.comparables.length} Propiedades Comparables:
 ${property.comparables.map((c, i) => `${i + 1}. $${Math.round(c.price).toLocaleString()} (${c.distance.toFixed(0)}m de distancia) - ${c.area}m², ${c.bedrooms || "N/A"} hab, ${c.bathrooms || "N/A"} baños, Año ${c.yearBuilt || "N/A"}`).join("\n")}
 Precio Promedio: $${Math.round(property.comparables.reduce((sum, c) => sum + c.price, 0) / property.comparables.length).toLocaleString()}
 Precio Promedio por m²: $${Math.round(property.comparables.reduce((sum, c) => sum + c.pricePerM2, 0) / property.comparables.length).toLocaleString()}
-` : ""}
+`
+    : ""
+}
 
 INSTRUCCIONES:
 Escribe una descripción detallada de 3-4 párrafos del entorno y ubicación de la propiedad, incluyendo:
@@ -291,7 +308,7 @@ Escribe una descripción detallada de 3-4 párrafos del entorno y ubicación de 
 6. Tendencias del mercado y demanda en el área basada en propiedades comparables
 7. Deseabilidad general y potencial de inversión de la ubicación
 
-IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5): 
+IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5):
 - Usa ÚNICAMENTE los datos estructurados proporcionados. NO inventes información.
 - Si un dato crítico no está disponible, DECLARA EXPLÍCITAMENTE esta limitación como "CONDICIÓN LIMITANTE" al inicio del párrafo correspondiente.
 - Ejemplo: "CONDICIÓN LIMITANTE: No se proporcionó información sobre el nivel socioeconómico del sector, por lo que este análisis se basa en observaciones visuales durante la inspección."
@@ -303,7 +320,7 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5):
 Escribe en español, tono profesional, adecuado para documentación bancaria. Sé específico y analítico, referenciando los datos proporcionados.`;
 
       const { text: environmentDescription } = await generateText({
-        model: openai("gpt-4o"),
+        model: google("gemini-1.5-pro-latest"),
         prompt: environmentPrompt,
       });
 
@@ -392,7 +409,9 @@ MATERIALES DE CONSTRUCCIÓN (Compatibilidad):
 
 ${property.amenities && property.amenities.length > 0 ? `AMENIDADES: ${property.amenities.join(", ")}` : ""}
 
-${riskAssessment && riskAssessment.detectedIssues.length > 0 ? `PATOLOGÍAS CONSTRUCTIVAS DETECTADAS:
+${
+  riskAssessment && riskAssessment.detectedIssues.length > 0
+    ? `PATOLOGÍAS CONSTRUCTIVAS DETECTADAS:
 ${riskAssessment.detectedIssues.join(", ")}
 - Grietas Estructurales: ${riskAssessment.hasStructuralCracks ? "Sí" : "No"}
 - Asentamientos: ${riskAssessment.hasSettlement ? "Sí" : "No"}
@@ -400,7 +419,9 @@ ${riskAssessment.detectedIssues.join(", ")}
 - Corrosión: ${riskAssessment.hasCorrosion ? "Sí" : "No"}
 - Problemas de Cimentación: ${riskAssessment.hasFoundationIssues ? "Sí" : "No"}
 - Daños en Techo: ${riskAssessment.hasRoofDamage ? "Sí" : "No"}
-` : ""}
+`
+    : ""
+}
 
 INSTRUCCIONES:
 Escribe una descripción técnica detallada de la propiedad (3-4 párrafos), incluyendo:
@@ -424,44 +445,50 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5):
 Escribe en español, tono profesional, adecuado para documentación bancaria. Sé minucioso y analítico.`;
 
       const { text: technicalDescription } = await generateText({
-        model: openai("gpt-4o"),
+        model: google("gemini-1.5-pro-latest"),
         prompt: technicalPrompt,
       });
 
       // ========== CALCULATE VALUES ==========
-      
+
       // 1. MARKET VALUE (Homologation Method)
-      const avgComparablePrice = property.comparables.length > 0
-        ? property.comparables.reduce((sum, c) => sum + c.adjustedPrice, 0) / property.comparables.length
-        : 0;
-      const marketValue = avgComparablePrice || (property.builtArea || 100) * 800;
+      const avgComparablePrice =
+        property.comparables.length > 0
+          ? property.comparables.reduce((sum, c) => sum + c.adjustedPrice, 0) /
+            property.comparables.length
+          : 0;
+      const marketValue =
+        avgComparablePrice || (property.builtArea || 100) * 800;
 
       // 2. COST VALUE (Replacement Cost Method)
       const constructionCostPerM2 = 650; // $/m² - This should come from parametersSnapshot
       const landValuePerM2 = 150; // $/m² - This should come from parametersSnapshot
       const landValue = (property.landArea || 0) * landValuePerM2;
-      const constructionCostBase = (property.builtArea || 0) * constructionCostPerM2;
-      
+      const constructionCostBase =
+        (property.builtArea || 0) * constructionCostPerM2;
+
       // Calculate depreciation using selected method
-      const age = property.yearBuilt ? new Date().getFullYear() - property.yearBuilt : 0;
+      const age = property.yearBuilt
+        ? new Date().getFullYear() - property.yearBuilt
+        : 0;
       const totalUsefulLife = determineTotalUsefulLife(
         property.type,
         property.structureType || undefined,
-        property.conservationState || undefined
+        property.conservationState || undefined,
       );
-      
+
       let depreciationResult;
       if (input.depreciationMethod === "Ross-Heidecke") {
         depreciationResult = calculateRossHeideckeDepreciation(
           age,
           totalUsefulLife,
-          property.conservationState || "REGULAR"
+          property.conservationState || "REGULAR",
         );
       } else if (input.depreciationMethod === "Fitto-Corvini") {
         depreciationResult = calculateFittoCorviniDepreciation(
           age,
           totalUsefulLife,
-          property.conservationState || "REGULAR"
+          property.conservationState || "REGULAR",
         );
       } else {
         // Linear depreciation (fallback)
@@ -471,15 +498,21 @@ Escribe en español, tono profesional, adecuado para documentación bancaria. S�
           remainingUsefulLife: Math.max(0, totalUsefulLife - age),
         };
       }
-      
-      const depreciationAmount = constructionCostBase * (depreciationResult.depreciationPercent / 100);
+
+      const depreciationAmount =
+        constructionCostBase * (depreciationResult.depreciationPercent / 100);
       const constructionCost = constructionCostBase - depreciationAmount;
-      
+
       // 3. ADDITIONAL WORKS VALUE
-      const additionalWorksResult = await calculateAdditionalWorksValue(input.propertyId);
-      
+      const additionalWorksResult = await calculateAdditionalWorksValue(
+        input.propertyId,
+      );
+
       // 4. COST VALUE TOTAL
-      const costValue = landValue + constructionCost + additionalWorksResult.totalDepreciatedValue;
+      const costValue =
+        landValue +
+        constructionCost +
+        additionalWorksResult.totalDepreciatedValue;
 
       // 5. INCOME VALUE (Capitalization of Rents)
       let incomeValue: number | undefined;
@@ -488,16 +521,17 @@ Escribe en español, tono profesional, adecuado para documentación bancaria. S�
       let operatingExpenses: number | undefined;
       let annualNetIncome: number | undefined;
       let capitalizationRate: number | undefined;
-      
+
       if (input.estimatedMonthlyRent && input.estimatedMonthlyRent > 0) {
         estimatedMonthlyRent = input.estimatedMonthlyRent;
         annualGrossIncome = estimatedMonthlyRent * 12;
-        
+
         // Operating expenses (default 25% if not provided)
         const operatingExpensesPercent = input.operatingExpensesPercent || 25;
-        operatingExpenses = annualGrossIncome * (operatingExpensesPercent / 100);
+        operatingExpenses =
+          annualGrossIncome * (operatingExpensesPercent / 100);
         annualNetIncome = annualGrossIncome - operatingExpenses;
-        
+
         // Capitalization rate (default 8% if not provided)
         capitalizationRate = input.capitalizationRate || 8;
         incomeValue = annualNetIncome / (capitalizationRate / 100);
@@ -507,10 +541,10 @@ Escribe en español, tono profesional, adecuado para documentación bancaria. S�
       let finalValue: number;
       if (incomeValue) {
         // If we have income value, use weighted average of all three methods
-        finalValue = marketValue * 0.50 + costValue * 0.30 + incomeValue * 0.20;
+        finalValue = marketValue * 0.5 + costValue * 0.3 + incomeValue * 0.2;
       } else {
         // Otherwise use market and cost only
-        finalValue = marketValue * 0.70 + costValue * 0.30;
+        finalValue = marketValue * 0.7 + costValue * 0.3;
       }
 
       // 7. CADASTRAL VALUE (if provided)
@@ -534,23 +568,25 @@ Escribe en español, tono profesional, adecuado para documentación bancaria. S�
           remainingUsefulLife: depreciationResult.remainingUsefulLife,
         },
         conservationStateFactors: {
-          EXCELLENT: 0.00,
+          EXCELLENT: 0.0,
           GOOD: 0.32,
-          REGULAR: 0.50,
+          REGULAR: 0.5,
           POOR: 0.72,
-          VERY_POOR: 0.90,
+          VERY_POOR: 0.9,
         },
         marketData: {
           comparablesCount: property.comparables.length,
           avgComparablePrice,
-          avgPricePerM2: property.comparables.length > 0
-            ? property.comparables.reduce((sum, c) => sum + c.pricePerM2, 0) / property.comparables.length
-            : 0,
+          avgPricePerM2:
+            property.comparables.length > 0
+              ? property.comparables.reduce((sum, c) => sum + c.pricePerM2, 0) /
+                property.comparables.length
+              : 0,
         },
         additionalWorks: additionalWorksResult.works,
         valuationWeights: incomeValue
-          ? { market: 0.50, cost: 0.30, income: 0.20 }
-          : { market: 0.70, cost: 0.30 },
+          ? { market: 0.5, cost: 0.3, income: 0.2 }
+          : { market: 0.7, cost: 0.3 },
         exchangeRate: 1.0, // USD
         propertySnapshot: {
           type: property.type,
@@ -574,31 +610,39 @@ Año de Construcción: ${property.yearBuilt || "N/A"}
 Estado de Conservación: ${property.conservationState || "No especificado"}
 
 RESULTADOS DE LA VALORACIÓN (TODOS LOS VALORES REDONDEADOS AL DÓLAR):
-Valor de Mercado (Método de Homologación): $${Math.round(marketValue).toLocaleString('es-EC')}
-Valor de Costo (Método de Reposición): $${Math.round(costValue).toLocaleString('es-EC')}
-${incomeValue ? `Valor de Renta (Método de Capitalización): $${Math.round(incomeValue).toLocaleString('es-EC')}` : ""}
-${cadastralValue ? `Valor Catastral: $${Math.round(cadastralValue).toLocaleString('es-EC')}` : ""}
-Valor de Realización: $${Math.round(realizationValue).toLocaleString('es-EC')}
-Valor Final del Avalúo: $${Math.round(finalValue).toLocaleString('es-EC')}
+Valor de Mercado (Método de Homologación): $${Math.round(marketValue).toLocaleString("es-EC")}
+Valor de Costo (Método de Reposición): $${Math.round(costValue).toLocaleString("es-EC")}
+${incomeValue ? `Valor de Renta (Método de Capitalización): $${Math.round(incomeValue).toLocaleString("es-EC")}` : ""}
+${cadastralValue ? `Valor Catastral: $${Math.round(cadastralValue).toLocaleString("es-EC")}` : ""}
+Valor de Realización: $${Math.round(realizationValue).toLocaleString("es-EC")}
+Valor Final del Avalúo: $${Math.round(finalValue).toLocaleString("es-EC")}
 
 DESGLOSE DEL MÉTODO DE COSTO:
-- Valor del Terreno: $${Math.round(landValue).toLocaleString('es-EC')} (${property.landArea || 0} m² × $${Math.round(landValuePerM2)}/m²)
-- Costo de Construcción Base: $${Math.round(constructionCostBase).toLocaleString('es-EC')} (${property.builtArea || 0} m² × $${Math.round(constructionCostPerM2)}/m²)
-- Depreciación (${input.depreciationMethod}): -$${Math.round(depreciationAmount).toLocaleString('es-EC')} (${depreciationResult.depreciationPercent.toFixed(2)}%)
+- Valor del Terreno: $${Math.round(landValue).toLocaleString("es-EC")} (${property.landArea || 0} m² × $${Math.round(landValuePerM2)}/m²)
+- Costo de Construcción Base: $${Math.round(constructionCostBase).toLocaleString("es-EC")} (${property.builtArea || 0} m² × $${Math.round(constructionCostPerM2)}/m²)
+- Depreciación (${input.depreciationMethod}): -$${Math.round(depreciationAmount).toLocaleString("es-EC")} (${depreciationResult.depreciationPercent.toFixed(2)}%)
   * Edad Cronológica: ${age} años
   * Vida Útil Total: ${totalUsefulLife} años
   * Vida Útil Remanente: ${depreciationResult.remainingUsefulLife.toFixed(2)} años
-- Costo de Construcción Depreciado: $${Math.round(constructionCost).toLocaleString('es-EC')}
-${additionalWorksResult.totalDepreciatedValue > 0 ? `- Obras Adicionales: $${Math.round(additionalWorksResult.totalDepreciatedValue).toLocaleString('es-EC')}
-  Detalle: ${additionalWorksResult.works.map(w => `${w.name} ($${Math.round(w.depreciatedValue).toLocaleString('es-EC')})`).join(", ")}` : ""}
+- Costo de Construcción Depreciado: $${Math.round(constructionCost).toLocaleString("es-EC")}
+${
+  additionalWorksResult.totalDepreciatedValue > 0
+    ? `- Obras Adicionales: $${Math.round(additionalWorksResult.totalDepreciatedValue).toLocaleString("es-EC")}
+  Detalle: ${additionalWorksResult.works.map((w) => `${w.name} ($${Math.round(w.depreciatedValue).toLocaleString("es-EC")})`).join(", ")}`
+    : ""
+}
 
-${property.comparables.length > 0 ? `ANÁLISIS DE PROPIEDADES COMPARABLES (${property.comparables.length} propiedades):
-${property.comparables.map((c, i) => `
+${
+  property.comparables.length > 0
+    ? `ANÁLISIS DE PROPIEDADES COMPARABLES (${property.comparables.length} propiedades):
+${property.comparables
+  .map(
+    (c, i) => `
 Comparable ${i + 1}:
 - Ubicación: ${c.address}
 - Distancia: ${c.distance.toFixed(0)} metros
-- Precio de Lista: $${Math.round(c.price).toLocaleString('es-EC')}
-- Precio por m²: $${Math.round(c.pricePerM2).toLocaleString('es-EC')}
+- Precio de Lista: $${Math.round(c.price).toLocaleString("es-EC")}
+- Precio por m²: $${Math.round(c.pricePerM2).toLocaleString("es-EC")}
 - Área: ${c.area} m²
 - Dormitorios: ${c.bedrooms || "N/A"}, Baños: ${c.bathrooms || "N/A"}
 - Año de Construcción: ${c.yearBuilt || "N/A"}
@@ -607,21 +651,29 @@ Comparable ${i + 1}:
   * Tamaño: ${(c.sizeAdjustment * 100).toFixed(0)}%
   * Edad: ${(c.ageAdjustment * 100).toFixed(0)}%
   * Calidad: ${(c.qualityAdjustment * 100).toFixed(0)}%
-- Precio Ajustado: $${Math.round(c.adjustedPrice).toLocaleString('es-EC')}
-`).join("\n")}
+- Precio Ajustado: $${Math.round(c.adjustedPrice).toLocaleString("es-EC")}
+`,
+  )
+  .join("\n")}
 
-Precio Ajustado Promedio: $${Math.round(avgComparablePrice).toLocaleString('es-EC')}
-Rango de Precios: $${Math.round(Math.min(...property.comparables.map(c => c.adjustedPrice))).toLocaleString('es-EC')} - $${Math.round(Math.max(...property.comparables.map(c => c.adjustedPrice))).toLocaleString('es-EC')}
-` : "CONDICIÓN LIMITANTE: Datos limitados de comparables disponibles en el mercado local."}
+Precio Ajustado Promedio: $${Math.round(avgComparablePrice).toLocaleString("es-EC")}
+Rango de Precios: $${Math.round(Math.min(...property.comparables.map((c) => c.adjustedPrice))).toLocaleString("es-EC")} - $${Math.round(Math.max(...property.comparables.map((c) => c.adjustedPrice))).toLocaleString("es-EC")}
+`
+    : "CONDICIÓN LIMITANTE: Datos limitados de comparables disponibles en el mercado local."
+}
 
-${incomeValue ? `ANÁLISIS DE CAPITALIZACIÓN DE RENTAS:
-- Renta Mensual Estimada: $${Math.round(estimatedMonthlyRent || 0).toLocaleString('es-EC')}
-- Ingreso Bruto Anual: $${Math.round(annualGrossIncome || 0).toLocaleString('es-EC')}
-- Gastos Operativos (${input.operatingExpensesPercent || 25}%): -$${Math.round(operatingExpenses || 0).toLocaleString('es-EC')}
-- Ingreso Neto Anual: $${Math.round(annualNetIncome || 0).toLocaleString('es-EC')}
+${
+  incomeValue
+    ? `ANÁLISIS DE CAPITALIZACIÓN DE RENTAS:
+- Renta Mensual Estimada: $${Math.round(estimatedMonthlyRent || 0).toLocaleString("es-EC")}
+- Ingreso Bruto Anual: $${Math.round(annualGrossIncome || 0).toLocaleString("es-EC")}
+- Gastos Operativos (${input.operatingExpensesPercent || 25}%): -$${Math.round(operatingExpenses || 0).toLocaleString("es-EC")}
+- Ingreso Neto Anual: $${Math.round(annualNetIncome || 0).toLocaleString("es-EC")}
 - Tasa de Capitalización: ${capitalizationRate}%
-- Valor por Capitalización: $${Math.round(incomeValue).toLocaleString('es-EC')}
-` : ""}
+- Valor por Capitalización: $${Math.round(incomeValue).toLocaleString("es-EC")}
+`
+    : ""
+}
 
 INSTRUCCIONES:
 Escribe una justificación comprehensiva de 3-4 párrafos explicando:
@@ -650,7 +702,7 @@ IMPORTANTE - CUMPLIMIENTO ESTRICTO SBS (Anexo 1, Sección 3.2.5 y Numeral 3.5.6)
 Escribe en español, tono profesional, adecuado para documentación bancaria.`;
 
       const { text: valueJustification } = await generateText({
-        model: openai("gpt-4o"),
+        model: google("gemini-1.5-pro-latest"),
         prompt: justificationPrompt,
       });
 
@@ -678,7 +730,8 @@ Escribe en español, tono profesional, adecuado para documentación bancaria.`;
         where: { id: report.id },
         data: {
           status: "DRAFT",
-          valuationObject: property.valuationRequest?.valuationObject || undefined,
+          valuationObject:
+            property.valuationRequest?.valuationObject || undefined,
           marketValue,
           costValue,
           incomeValue,
@@ -716,7 +769,7 @@ Escribe en español, tono profesional, adecuado para documentación bancaria.`;
           entityId: report.id,
           propertyId: input.propertyId,
           reportId: report.id,
-          metadata: JSON.stringify({ 
+          metadata: JSON.stringify({
             finalValue,
             depreciationMethod: input.depreciationMethod,
             additionalWorksCount: additionalWorksResult.works.length,
@@ -726,6 +779,7 @@ Escribe en español, tono profesional, adecuado para documentación bancaria.`;
 
       return updatedReport;
     } catch (error) {
+      console.error("🚨 ERROR FATAL AL GENERAR REPORTE CON IA:", error);
       // Update report status to failed
       await db.valuationReport.update({
         where: { id: report.id },
@@ -736,7 +790,7 @@ Escribe en español, tono profesional, adecuado para documentación bancaria.`;
 
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to generate report",
+        message: `Failed to generate report: ${error instanceof Error ? error.message : "Unknown error"}`,
       });
     }
   });
@@ -746,7 +800,7 @@ export const getReport = baseProcedure
     z.object({
       token: z.string(),
       reportId: z.number(),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
@@ -796,10 +850,18 @@ export const getReports = baseProcedure
   .input(
     z.object({
       token: z.string(),
-      status: z.enum(["GENERATING", "DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED"]).optional(),
+      status: z
+        .enum([
+          "GENERATING",
+          "DRAFT",
+          "PENDING_APPROVAL",
+          "APPROVED",
+          "REJECTED",
+        ])
+        .optional(),
       limit: z.number().default(20),
       offset: z.number().default(0),
-    })
+    }),
   )
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);

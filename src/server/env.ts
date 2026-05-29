@@ -16,6 +16,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string(),
   OPENAI_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string(),
 });
 
 export const env = envSchema.parse(process.env);
