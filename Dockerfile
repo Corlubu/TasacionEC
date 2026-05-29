@@ -35,7 +35,7 @@ RUN pnpm install
 COPY . .
 
 # 8. Generamos el cliente de la Base de Datos (Prisma)
-RUN npx prisma generate
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # 9. Descargamos el navegador invisible de Playwright (Chromium)
 RUN npx playwright install chromium
