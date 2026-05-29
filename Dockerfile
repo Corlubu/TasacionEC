@@ -25,23 +25,24 @@ WORKDIR /app
 # 4. Instalamos pnpm globalmente
 RUN npm install -g pnpm
 
-# 5. Copiamos los archivos de dependencias Y la carpeta prisma
+# 5. Copiamos los archivos de dependencias y Prisma
 COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 
-# 6. Instalamos todas las dependencias (ahora el postinstall encontrará el esquema)
-RUN pnpm install
+# 6. Instalamos dependencias IGNORANDO los scripts automáticos (para que tsr no falle)
+RUN pnpm install --ignore-scripts
 
-# 7. Copiamos el resto de tu código al contenedor
+# 7. Ahora sí, copiamos el resto de tu código al contenedor (incluyendo src/routes)
 COPY . .
 
-# 8. Generamos el cliente de la Base de Datos (Prisma)
+# 8. Ejecutamos los generadores manualmente, ahora que todo el código ya existe
 RUN npx prisma generate
+RUN npx tsr generate
 
 # 9. Descargamos el navegador invisible de Playwright (Chromium)
 RUN npx playwright install chromium
 
-# 10. Construimos la aplicación (Vite/Vinxi preparará el frontend y backend para producción)
+# 10. Construimos la aplicación
 RUN pnpm run build
 
 # 11. Exponemos el puerto que usará Render
