@@ -19,12 +19,14 @@ async function getUserIdFromToken(token: string): Promise<number> {
   }
 }
 
-// Helper to preprocess optional number fields - converts NaN to undefined
+// 🚨 MAGIA APLICADA: Helper mejorado para procesar campos numéricos
+// Convierte strings vacíos a undefined (para evitar que Prisma guarde un 0 por error)
+// y fuerza (coerce) los strings numéricos a números reales.
 const optionalNumber = z.preprocess((val) => {
-  if (typeof val === "number" && isNaN(val)) {
-    return undefined;
-  }
-  return val;
+  if (val === "" || val === null || val === undefined) return undefined;
+  const parsed = Number(val);
+  if (isNaN(parsed)) return undefined;
+  return parsed;
 }, z.number().optional());
 
 export const createProperty = baseProcedure
@@ -37,16 +39,16 @@ export const createProperty = baseProcedure
       state: z.string(),
       zipCode: z.string().optional(),
       type: z.enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"]),
-      latitude: z.number(),
-      longitude: z.number(),
+      latitude: z.coerce.number(), // 👈 Actualizado a coerce
+      longitude: z.coerce.number(), // 👈 Actualizado a coerce
 
-      // Areas - using optionalNumber to handle NaN
+      // Areas - using optionalNumber to handle NaN and empty strings
       landArea: optionalNumber,
       builtArea: optionalNumber,
       areaAccordingToDeed: optionalNumber,
       areaOnSite: optionalNumber,
 
-      // Physical Characteristics - using optionalNumber to handle NaN
+      // Physical Characteristics
       bedrooms: optionalNumber,
       bathrooms: optionalNumber,
       floors: optionalNumber,
@@ -62,7 +64,7 @@ export const createProperty = baseProcedure
       propertyRegime: z
         .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
         .optional(),
-      inspectionDate: z.coerce.date().optional(), // coerce convierte el string que viene del frontend a Date
+      inspectionDate: z.coerce.date().optional(),
       personPresentAtInspection: z.string().optional(),
       saturationIndex: optionalNumber,
       socioeconomicLevel: z
@@ -82,7 +84,7 @@ export const createProperty = baseProcedure
       hasMaintenanceLogs: z.boolean().optional(),
       maintenanceNotes: z.string().optional(),
 
-      // Boundaries - using optionalNumber to handle NaN
+      // Boundaries
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
       southBoundaryLength: optionalNumber,
@@ -260,7 +262,7 @@ export const createProperty = baseProcedure
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
 
-      // Construction Details (existing - mantener para compatibilidad)
+      // Construction Details
       roofMaterial: z.string().optional(),
       wallMaterial: z.string().optional(),
       floorMaterial: z.string().optional(),
@@ -299,7 +301,6 @@ export const createProperty = baseProcedure
       ...propertyData
     } = input;
 
-    // Create the Property and the ValuationRequest in a single transaction
     const property = await db.property.create({
       data: {
         ...propertyData,
@@ -332,7 +333,6 @@ export const createProperty = baseProcedure
       },
     });
 
-    // Create audit log
     await db.auditLog.create({
       data: {
         userId,
@@ -435,7 +435,6 @@ export const getProperty = baseProcedure
       });
     }
 
-    // Verify ownership
     if (property.userId !== userId) {
       const user = await db.user.findUnique({ where: { id: userId } });
       if (user?.role !== "ADMIN" && user?.role !== "SUPERVISOR") {
@@ -509,13 +508,17 @@ export const updateProperty = baseProcedure
         .enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"])
         .optional(),
 
-      // Areas - using optionalNumber to handle NaN
+      // 👈 Agregamos latitude y longitude que faltaban aquí
+      latitude: z.coerce.number().optional(),
+      longitude: z.coerce.number().optional(),
+
+      // Areas
       landArea: optionalNumber,
       builtArea: optionalNumber,
       areaAccordingToDeed: optionalNumber,
       areaOnSite: optionalNumber,
 
-      // Physical Characteristics - using optionalNumber to handle NaN
+      // Physical Characteristics
       bedrooms: optionalNumber,
       bathrooms: optionalNumber,
       floors: optionalNumber,
@@ -551,7 +554,7 @@ export const updateProperty = baseProcedure
       hasMaintenanceLogs: z.boolean().optional(),
       maintenanceNotes: z.string().optional(),
 
-      // Boundaries - using optionalNumber to handle NaN
+      // Boundaries
       northBoundaryLength: optionalNumber,
       northBoundaryAdjacent: z.string().optional(),
       southBoundaryLength: optionalNumber,
@@ -729,7 +732,7 @@ export const updateProperty = baseProcedure
       electricalDescription: z.string().optional(),
       electricalCapacity: z.string().optional(),
 
-      // Construction Details (existing)
+      // Construction Details
       roofMaterial: z.string().optional(),
       wallMaterial: z.string().optional(),
       floorMaterial: z.string().optional(),
@@ -750,7 +753,6 @@ export const updateProperty = baseProcedure
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
 
-    // Get existing property
     const existingProperty = await db.property.findUnique({
       where: { id: input.propertyId },
     });
@@ -762,7 +764,6 @@ export const updateProperty = baseProcedure
       });
     }
 
-    // Verify ownership
     if (existingProperty.userId !== userId) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -770,7 +771,6 @@ export const updateProperty = baseProcedure
       });
     }
 
-    // Only allow editing if property is in DRAFT status
     if (existingProperty.status !== "DRAFT") {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -778,7 +778,6 @@ export const updateProperty = baseProcedure
       });
     }
 
-    // Separamos los datos del Property y los del ValuationRequest
     const {
       token,
       propertyId,
@@ -800,12 +799,10 @@ export const updateProperty = baseProcedure
       ...updateData
     } = input;
 
-    // 1. Limpiamos updateData de valores undefined
     const cleanedUpdateData = Object.fromEntries(
       Object.entries(updateData).filter(([_, v]) => v !== undefined),
     );
 
-    // 2. Preparamos los datos de la solicitud y los limpiamos
     const rawRequestData = {
       financialInstitution,
       branchOffice,
@@ -828,12 +825,11 @@ export const updateProperty = baseProcedure
       Object.entries(rawRequestData).filter(([_, v]) => v !== undefined),
     );
 
-    // Verificamos si realmente hay datos de solicitud para procesar
     const hasRequestData = Object.keys(requestData).length > 0;
 
     console.log("📥 2. BACKEND RECIBIÓ SOLICITUD:", requestData);
     console.log("❓ ¿Hará el Upsert?:", hasRequestData);
-    // 3. Ejecutamos el Update con el upsert condicional
+
     const property = await db.property.update({
       where: { id: input.propertyId },
       data: {
@@ -851,7 +847,6 @@ export const updateProperty = baseProcedure
       },
     });
 
-    // Create audit log
     await db.auditLog.create({
       data: {
         userId,
@@ -894,7 +889,6 @@ export const deleteProperty = baseProcedure
       });
     }
 
-    // Only allow deleting DRAFT properties
     if (property.status !== "DRAFT") {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -906,7 +900,6 @@ export const deleteProperty = baseProcedure
       where: { id: input.propertyId },
     });
 
-    // Create audit log
     await db.auditLog.create({
       data: {
         userId,
@@ -938,16 +931,16 @@ export const importProperties = baseProcedure
             "LAND",
             "INDUSTRIAL",
           ]),
-          latitude: z.number(),
-          longitude: z.number(),
+          latitude: z.coerce.number(), // 👈 Actualizado a coerce
+          longitude: z.coerce.number(), // 👈 Actualizado a coerce
 
-          // Areas - using optionalNumber to handle NaN
+          // Areas
           landArea: optionalNumber,
           builtArea: optionalNumber,
           areaAccordingToDeed: optionalNumber,
           areaOnSite: optionalNumber,
 
-          // Physical Characteristics - using optionalNumber to handle NaN
+          // Physical Characteristics
           bedrooms: optionalNumber,
           bathrooms: optionalNumber,
           floors: optionalNumber,
@@ -959,7 +952,7 @@ export const importProperties = baseProcedure
           parking: optionalNumber,
           amenities: z.array(z.string()).optional(),
 
-          // Boundaries - using optionalNumber to handle NaN
+          // Boundaries
           northBoundaryLength: optionalNumber,
           northBoundaryAdjacent: z.string().optional(),
           southBoundaryLength: optionalNumber,
@@ -1103,7 +1096,7 @@ export const importProperties = baseProcedure
           electricalDescription: z.string().optional(),
           electricalCapacity: z.string().optional(),
 
-          // Construction Details (existing)
+          // Construction Details
           roofMaterial: z.string().optional(),
           wallMaterial: z.string().optional(),
           floorMaterial: z.string().optional(),
@@ -1118,7 +1111,6 @@ export const importProperties = baseProcedure
           hasLiens: z.boolean().optional(),
           hasEncumbrances: z.boolean().optional(),
 
-          // Optional: if provided, will update existing property instead of creating new
           existingPropertyId: optionalNumber,
         }),
       ),
@@ -1139,7 +1131,6 @@ export const importProperties = baseProcedure
 
       try {
         if (propertyData.existingPropertyId) {
-          // Update existing property
           const existing = await db.property.findUnique({
             where: { id: propertyData.existingPropertyId },
           });
@@ -1182,7 +1173,6 @@ export const importProperties = baseProcedure
 
           results.updated++;
         } else {
-          // Create new property
           const { existingPropertyId, ...createData } = propertyData;
           await db.property.create({
             data: {
@@ -1204,7 +1194,6 @@ export const importProperties = baseProcedure
       }
     }
 
-    // Create audit log
     await db.auditLog.create({
       data: {
         userId,
