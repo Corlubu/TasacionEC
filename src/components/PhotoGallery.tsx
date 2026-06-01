@@ -11,31 +11,37 @@ interface PhotoGalleryProps {
   onPhotosChange?: () => void;
 }
 
-export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: PhotoGalleryProps) {
+export function PhotoGallery({
+  propertyId,
+  propertyStatus,
+  onPhotosChange,
+}: PhotoGalleryProps) {
   const { token } = useAuthStore();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [uploadProgress, setUploadProgress] = useState<{
+    [key: string]: number;
+  }>({});
 
   const photosQuery = useQuery(
     trpc.getPropertyPhotos.queryOptions({
       token: token!,
       propertyId,
-    })
+    }),
   );
 
   const generateBatchUrlsMutation = useMutation(
-    trpc.generateBatchUploadUrls.mutationOptions()
+    trpc.generateBatchUploadUrls.mutationOptions(),
   );
 
   const confirmUploadMutation = useMutation(
-    trpc.confirmPhotoUpload.mutationOptions()
+    trpc.confirmPhotoUpload.mutationOptions(),
   );
 
   const deletePhotoMutation = useMutation(
-    trpc.deletePropertyPhoto.mutationOptions()
+    trpc.deletePropertyPhoto.mutationOptions(),
   );
 
   const photos = photosQuery.data || [];
@@ -52,15 +58,19 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
     { value: "document", label: "Documento" },
   ];
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = Array.from(event.target.files || []);
-    
+
     if (files.length === 0) return;
 
     // Validate photo count
     const newTotal = currentPhotoCount + files.length;
     if (newTotal > 20) {
-      toast.error(`No se pueden subir ${files.length} fotos. Máximo 20 fotos por propiedad. Actual: ${currentPhotoCount}`);
+      toast.error(
+        `No se pueden subir ${files.length} fotos. Máximo 20 fotos por propiedad. Actual: ${currentPhotoCount}`,
+      );
       return;
     }
 
@@ -85,7 +95,7 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
         files: fileData,
       });
 
-      // Upload files to MinIO and confirm in parallel
+      // Upload files to Supabase S3 and confirm in parallel
       const uploadPromises = result.uploadUrls.map(async (urlData, index) => {
         const file = files[index];
         const progressKey = file.name;
@@ -93,16 +103,17 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
         try {
           setUploadProgress((prev) => ({ ...prev, [progressKey]: 0 }));
 
-          // Upload to MinIO
+          // 🚨 MAGIA APLICADA: Subimos a S3 sin el header conflictivo
           const response = await fetch(urlData.uploadUrl, {
             method: "PUT",
             body: file,
-            headers: {
-              "Content-Type": file.type,
-            },
+            // Eliminamos el headers: { "Content-Type": file.type } que rompía la firma criptográfica
           });
 
           if (!response.ok) {
+            // Leemos el error exacto que nos devuelve Supabase para saber qué pasó
+            const errorText = await response.text();
+            console.error(`Error de S3 al subir ${file.name}:`, errorText);
             throw new Error(`Upload failed for ${file.name}`);
           }
 
@@ -134,9 +145,12 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
       if (successCount > 0) {
         // Invalidate the photos query
         await queryClient.invalidateQueries({
-          queryKey: trpc.getPropertyPhotos.queryKey({ token: token!, propertyId }),
+          queryKey: trpc.getPropertyPhotos.queryKey({
+            token: token!,
+            propertyId,
+          }),
         });
-        
+
         // Also invalidate the property query to update photo count in parent components
         await queryClient.invalidateQueries({
           queryKey: trpc.getProperty.queryKey({ token: token!, propertyId }),
@@ -175,18 +189,21 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
           token: token!,
           photoId,
         });
-        
+
         // Invalidate queries to refresh the UI
         await queryClient.invalidateQueries({
-          queryKey: trpc.getPropertyPhotos.queryKey({ token: token!, propertyId }),
+          queryKey: trpc.getPropertyPhotos.queryKey({
+            token: token!,
+            propertyId,
+          }),
         });
-        
+
         await queryClient.invalidateQueries({
           queryKey: trpc.getProperty.queryKey({ token: token!, propertyId }),
         });
-        
+
         onPhotosChange?.();
-        
+
         toast.success("Foto eliminada");
       } catch (error: any) {
         toast.error(error.message || "Error al eliminar la foto");
@@ -204,8 +221,9 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold text-gray-900">Galería de Fotos</h3>
-          <p className="text-sm text-gray-600 mt-1">
-            {currentPhotoCount} de 20 fotos {currentPhotoCount < 5 && "(mínimo 5 requeridas)"}
+          <p className="mt-1 text-sm text-gray-600">
+            {currentPhotoCount} de 20 fotos{" "}
+            {currentPhotoCount < 5 && "(mínimo 5 requeridas)"}
           </p>
         </div>
         {isDraft && canUpload && (
@@ -222,16 +240,16 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {uploading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Subiendo...</span>
                 </>
               ) : (
                 <>
-                  <Upload className="w-5 h-5" />
+                  <Upload className="h-5 w-5" />
                   <span>Subir Fotos</span>
                 </>
               )}
@@ -242,15 +260,15 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
 
       {/* Photo count warning */}
       {currentPhotoCount < 5 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start space-x-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
           <div>
             <p className="text-sm font-semibold text-yellow-900">
               Fotos insuficientes
             </p>
-            <p className="text-sm text-yellow-700 mt-1">
-              Se requieren al menos 5 fotos para completar el registro de la propiedad.
-              Faltan {5 - currentPhotoCount} foto(s).
+            <p className="mt-1 text-sm text-yellow-700">
+              Se requieren al menos 5 fotos para completar el registro de la
+              propiedad. Faltan {5 - currentPhotoCount} foto(s).
             </p>
           </div>
         </div>
@@ -258,19 +276,23 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
 
       {/* Upload Progress */}
       {uploading && Object.keys(uploadProgress).length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm font-semibold text-blue-900 mb-2">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-blue-900">
             Subiendo fotos...
           </p>
           {Object.entries(uploadProgress).map(([fileName, progress]) => (
             <div key={fileName} className="mb-2">
-              <div className="flex items-center justify-between text-xs text-blue-700 mb-1">
-                <span className="truncate max-w-xs">{fileName}</span>
+              <div className="mb-1 flex items-center justify-between text-xs text-blue-700">
+                <span className="max-w-xs truncate">{fileName}</span>
                 <span>
-                  {progress === -1 ? "Error" : progress === 100 ? "Completado" : `${progress}%`}
+                  {progress === -1
+                    ? "Error"
+                    : progress === 100
+                      ? "Completado"
+                      : `${progress}%`}
                 </span>
               </div>
-              <div className="w-full bg-blue-200 rounded-full h-1.5">
+              <div className="h-1.5 w-full rounded-full bg-blue-200">
                 <div
                   className={`h-1.5 rounded-full transition-all ${
                     progress === -1 ? "bg-red-600" : "bg-blue-600"
@@ -285,59 +307,62 @@ export function PhotoGallery({ propertyId, propertyStatus, onPhotosChange }: Pho
 
       {/* Photos Grid */}
       {photosQuery.isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="animate-pulse bg-gray-200 rounded-lg aspect-square"
+              className="aspect-square animate-pulse rounded-lg bg-gray-200"
             />
           ))}
         </div>
       ) : photos.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <Image className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4">No hay fotos aún</p>
+        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12 text-center">
+          <Image className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+          <p className="mb-4 text-gray-600">No hay fotos aún</p>
           {isDraft && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-blue-600 hover:text-blue-700 font-semibold"
+              className="font-semibold text-blue-600 hover:text-blue-700"
             >
               Subir tus primeras fotos
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {photos.map((photo) => (
             <div
               key={photo.id}
-              className="relative group rounded-lg overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow"
+              className="group relative overflow-hidden rounded-lg border border-gray-200 transition-shadow hover:shadow-lg"
             >
-              <div className="aspect-square bg-gray-100 flex items-center justify-center">
+              <div className="flex aspect-square items-center justify-center bg-gray-100">
                 <img
                   src={photo.url}
                   alt={photo.caption || "Property photo"}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+                    e.currentTarget.src =
+                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
                   }}
                 />
               </div>
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                <p className="text-xs text-white font-semibold">
+                <p className="text-xs font-semibold text-white">
                   {getCategoryLabel(photo.category)}
                 </p>
                 {photo.caption && (
-                  <p className="text-xs text-white/80 truncate">{photo.caption}</p>
+                  <p className="truncate text-xs text-white/80">
+                    {photo.caption}
+                  </p>
                 )}
               </div>
               {isDraft && (
                 <button
                   onClick={() => handleDelete(photo.id)}
                   disabled={deletePhotoMutation.isPending}
-                  className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 disabled:opacity-50"
+                  className="absolute right-2 top-2 rounded-full bg-red-600 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-700 disabled:opacity-50 group-hover:opacity-100"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </div>
