@@ -216,19 +216,19 @@ model ValuationRequest {
   id                    Int      @id @default(autoincrement())
 
   // Requesting Entity
-  financialInstitution  String   // Nombre de la entidad financiera
+  financialInstitution  String?  // Nombre de la entidad financiera
   branchOffice          String?  // Oficina/sucursal
-  creditOfficer         String   // Oficial de crédito responsable
+  creditOfficer         String?   // Oficial de crédito responsable
 
   // Client Information
-  clientName            String   // Cliente solicitante
-  clientId              String   // Cédula/RUC del cliente
+  clientName            String?   // Cliente solicitante
+  clientId              String?   // Cédula/RUC del cliente
   clientPhone           String?
   clientEmail           String?
 
   // Legal Owner (may differ from client)
-  legalOwnerName        String   // Propietario legal según escrituras
-  legalOwnerId          String   // Cédula/RUC del propietario
+  legalOwnerName        String?   // Propietario legal según escrituras
+  legalOwnerId          String?   // Cédula/RUC del propietario
 
   // Purpose
   purpose               ValuationPurpose
