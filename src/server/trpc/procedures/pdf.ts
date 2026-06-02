@@ -863,7 +863,7 @@ export const generatePDF = baseProcedure
       console.error("Error generating PDF:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to generate PDF",
+        message: "Failed to generate PDF.",
       });
     }
   });
