@@ -13,7 +13,7 @@ import {
   X,
   Download,
   CheckCircle,
-  Eye, // 👈 Ícono para el botón de solo lectura
+  Eye,
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -32,7 +32,7 @@ function PropertyDetailPage() {
   const [activeTab, setActiveTab] = useState<"details" | "photos" | "report">(
     "details",
   );
-  const [showForm, setShowForm] = useState(false); // 👈 Reemplazamos isEditing por showForm (sirve para editar y para ver)
+  const [showForm, setShowForm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
@@ -146,6 +146,7 @@ function PropertyDetailPage() {
 
   const handleDownloadPDF = () => {
     if (!report) return;
+
     if (report.pdfUrl) {
       const triggerDownload = async () => {
         setIsDownloading(true);
@@ -178,6 +179,7 @@ function PropertyDetailPage() {
       triggerDownload();
       return;
     }
+
     toast.loading("Generando PDF profesional...", { duration: 2000 });
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
@@ -270,10 +272,13 @@ function PropertyDetailPage() {
               )}
             </div>
             <div className="flex items-center space-x-3">
-              {/* 🚨 MAGIA APLICADA: Botón Dinámico (Editar si es Borrador, Ver si es Finalizado) */}
               {!showForm && (
                 <button
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    // 🚨 MAGIA: Aseguramos que siempre abra en Detalles de Propiedad
+                    setActiveTab("details");
+                    setShowForm(true);
+                  }}
                   className={`flex items-center space-x-2 rounded-lg border-2 px-5 py-3 font-semibold transition-all ${
                     property.status === "DRAFT"
                       ? "border-blue-600 bg-white text-blue-600 hover:bg-blue-50"
@@ -332,11 +337,15 @@ function PropertyDetailPage() {
           </div>
         </div>
 
+        {/* 🚨 MAGIA: Reparación de pestañas principales */}
         {/* Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="flex space-x-8">
             <button
-              onClick={() => setActiveTab("details")}
+              onClick={() => {
+                setActiveTab("details");
+                setShowForm(false); // Apagamos el formulario
+              }}
               className={`border-b-2 px-1 pb-4 font-semibold transition-colors ${
                 activeTab === "details"
                   ? "border-blue-600 text-blue-600"
@@ -346,7 +355,10 @@ function PropertyDetailPage() {
               Detalles de Propiedad
             </button>
             <button
-              onClick={() => setActiveTab("photos")}
+              onClick={() => {
+                setActiveTab("photos");
+                setShowForm(false); // Apagamos el formulario
+              }}
               className={`flex items-center space-x-2 border-b-2 px-1 pb-4 font-semibold transition-colors ${
                 activeTab === "photos"
                   ? "border-blue-600 text-blue-600"
@@ -358,7 +370,10 @@ function PropertyDetailPage() {
             </button>
             {report && (
               <button
-                onClick={() => setActiveTab("report")}
+                onClick={() => {
+                  setActiveTab("report");
+                  setShowForm(false); // Apagamos el formulario
+                }}
                 className={`flex items-center space-x-2 border-b-2 px-1 pb-4 font-semibold transition-colors ${
                   activeTab === "report"
                     ? "border-blue-600 text-blue-600"
@@ -389,7 +404,6 @@ function PropertyDetailPage() {
               </button>
             </div>
 
-            {/* 🚨 MAGIA APLICADA: Enviamos la bandera de Solo Lectura al formulario */}
             <PropertyForm
               initialValues={initialFormValues}
               onSubmit={handleUpdateProperty}
@@ -430,7 +444,6 @@ function PropertyDetailPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Estado</p>
-                    {/* 🚨 MAGIA APLICADA: Traducción Visual de DRAFT y COMPLETED */}
                     <p
                       className={`font-semibold ${property.status === "COMPLETED" ? "text-green-600" : "text-amber-600"}`}
                     >
@@ -559,6 +572,7 @@ function PropertyDetailPage() {
                     {new Date(report.generatedAt!).toLocaleDateString("es-EC")}
                   </p>
                 </div>
+
                 <div className="flex items-center space-x-4">
                   {report.pdfUrl && (
                     <button
