@@ -6,18 +6,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Home,
   MapPin,
-  Calendar,
   FileText,
   Sparkles,
-  DollarSign,
-  TrendingUp,
-  Building2,
   Loader2,
   Edit,
-  Save,
   X,
   Download,
   CheckCircle,
+  Eye, // 👈 Ícono para el botón de Ver PDF
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -37,6 +33,7 @@ function PropertyDetailPage() {
     "details",
   );
   const [isEditing, setIsEditing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // 👈 Nuevo estado para controlar el botón de descarga
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -77,7 +74,6 @@ function PropertyDetailPage() {
     }),
   );
 
-  // 🚨 MAGIA APLICADA: Fuerza de descarga nativa en el dispositivo
   const generatePDFMutation = useMutation(
     trpc.generatePDF.mutationOptions({
       onSuccess: async (data) => {
@@ -159,9 +155,11 @@ function PropertyDetailPage() {
 
   const handleDownloadPDF = () => {
     if (!report) return;
-    // Si la URL del PDF ya existe en el reporte (ya se generó antes), la descargamos directamente
+
+    // Si la URL del PDF ya existe en el reporte, forzamos la descarga manual
     if (report.pdfUrl) {
       const triggerDownload = async () => {
+        setIsDownloading(true);
         const toastId = toast.loading("Descargando archivo a su equipo...");
         try {
           const response = await fetch(report.pdfUrl!);
@@ -181,16 +179,18 @@ function PropertyDetailPage() {
           toast.success("¡Descarga completada con éxito!", { id: toastId });
         } catch (error) {
           window.open(report.pdfUrl!, "_blank");
-          toast.success("¡PDF generado! (Se abrió en una pestaña nueva)", {
+          toast.success("¡PDF descargado! (Se abrió en una pestaña nueva)", {
             id: toastId,
           });
+        } finally {
+          setIsDownloading(false);
         }
       };
       triggerDownload();
       return;
     }
 
-    // Si no se ha generado antes, lo generamos en el backend
+    // Si no existe el PDF, le decimos al backend que lo genere
     toast.loading("Generando PDF profesional...", { duration: 2000 });
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
@@ -276,7 +276,6 @@ function PropertyDetailPage() {
                   {property.city}, {property.state}
                 </span>
               </div>
-              {/* Etiqueta visual para indicar que está completado */}
               {property.status === "COMPLETED" && (
                 <span className="mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
                   Avalúo Finalizado
@@ -284,7 +283,6 @@ function PropertyDetailPage() {
               )}
             </div>
             <div className="flex items-center space-x-3">
-              {/* Solo se puede editar si está en DRAFT */}
               {property.status === "DRAFT" && !isEditing && (
                 <button
                   onClick={() => setIsEditing(true)}
@@ -295,7 +293,6 @@ function PropertyDetailPage() {
                 </button>
               )}
 
-              {/* Botón para generar reporte (solo si NO hay reporte y está en DRAFT) */}
               {!report && property.status === "DRAFT" && !isEditing && (
                 <button
                   onClick={handleGenerateReport}
@@ -541,7 +538,7 @@ function PropertyDetailPage() {
           />
         ) : activeTab === "report" && report ? (
           <div className="space-y-6">
-            <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white">
+            <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="mb-2 text-2xl font-bold">
@@ -552,26 +549,55 @@ function PropertyDetailPage() {
                     {new Date(report.generatedAt!).toLocaleDateString("es-EC")}
                   </p>
                 </div>
+
+                {/* 🚨 MAGIA APLICADA: Área de Botones Dinámica */}
                 <div className="flex items-center space-x-4">
+                  {/* Botón 1: VER EN PESTAÑA NUEVA (Solo aparece si el PDF ya existe) */}
+                  {report.pdfUrl && (
+                    <button
+                      onClick={() => window.open(report.pdfUrl, "_blank")}
+                      className="flex items-center space-x-2 rounded-lg bg-white/20 px-6 py-3 font-semibold text-white transition-all hover:bg-white/30"
+                    >
+                      <Eye className="h-5 w-5" />
+                      <span>Ver PDF</span>
+                    </button>
+                  )}
+
+                  {/* Botón 2: DESCARGAR O GENERAR */}
                   <button
                     onClick={handleDownloadPDF}
-                    disabled={generatePDFMutation.isPending}
-                    className="flex items-center space-x-2 rounded-lg bg-white px-6 py-3 font-semibold text-blue-600 transition-all hover:bg-blue-50"
+                    disabled={generatePDFMutation.isPending || isDownloading}
+                    className="flex items-center space-x-2 rounded-lg bg-white px-6 py-3 font-semibold text-blue-600 transition-all hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {generatePDFMutation.isPending ? (
+                    {generatePDFMutation.isPending || isDownloading ? (
                       <>
                         <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Generando...</span>
+                        <span>
+                          {isDownloading ? "Descargando..." : "Generando..."}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Download className="h-5 w-5" />
-                        <span>Descargar PDF.</span>
+                        <span>
+                          {report.pdfUrl ? "Descargar PDF" : "Generar PDF"}
+                        </span>
                       </>
                     )}
                   </button>
                 </div>
               </div>
+
+              {/* 🚨 MAGIA APLICADA: Previsualizador Integrado de PDF */}
+              {report.pdfUrl && (
+                <div className="mt-8 h-[700px] w-full overflow-hidden rounded-xl border border-white/20 bg-white shadow-2xl">
+                  <iframe
+                    src={`${report.pdfUrl}#toolbar=0`}
+                    className="h-full w-full border-0"
+                    title="Visor de Reporte PDF"
+                  />
+                </div>
+              )}
             </div>
           </div>
         ) : null}
