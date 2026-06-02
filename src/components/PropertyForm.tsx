@@ -285,19 +285,19 @@ export function PropertyForm({
         requiredDate: formattedRequiredDate,
 
         // Casting estricto a booleano, a prueba de fallos
-        sidewalkAvailable: cleanBase.sidewalkAvailable === true,
-        hasPotableWater: cleanBase.hasPotableWater === true,
-        hasStormDrainage: cleanBase.hasStormDrainage === true,
-        hasSanitarySewer: cleanBase.hasSanitarySewer === true,
-        hasElectricityAerial: cleanBase.hasElectricityAerial === true,
-        hasElectricityUnderground: cleanBase.hasElectricityUnderground === true,
-        hasTelephone: cleanBase.hasTelephone === true,
-        hasInternet: cleanBase.hasInternet === true,
-        hasStreetLighting: cleanBase.hasStreetLighting === true,
-        hasGarbageCollection: cleanBase.hasGarbageCollection === true,
-        hasLiens: cleanBase.hasLiens === true,
-        hasEncumbrances: cleanBase.hasEncumbrances === true,
-        hasMaintenanceLogs: cleanBase.hasMaintenanceLogs === true,
+        sidewalkAvailable: Boolean(cleanBase.sidewalkAvailable),
+        hasPotableWater: Boolean(cleanBase.hasPotableWater),
+        hasStormDrainage: Boolean(cleanBase.hasStormDrainage),
+        hasSanitarySewer: Boolean(cleanBase.hasSanitarySewer),
+        hasElectricityAerial: Boolean(cleanBase.hasElectricityAerial),
+        hasElectricityUnderground: Boolean(cleanBase.hasElectricityUnderground),
+        hasTelephone: Boolean(cleanBase.hasTelephone),
+        hasInternet: Boolean(cleanBase.hasInternet),
+        hasStreetLighting: Boolean(cleanBase.hasStreetLighting),
+        hasGarbageCollection: Boolean(cleanBase.hasGarbageCollection),
+        hasLiens: Boolean(cleanBase.hasLiens),
+        hasEncumbrances: Boolean(cleanBase.hasEncumbrances),
+        hasMaintenanceLogs: Boolean(cleanBase.hasMaintenanceLogs),
 
         amenities: Array.isArray(cleanBase.amenities)
           ? cleanBase.amenities
