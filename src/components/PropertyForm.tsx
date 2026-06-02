@@ -331,6 +331,9 @@ export function PropertyForm({
       hasMaintenanceLogs: false,
     },
     values: computedValues as PropertyFormData, // 🔥 Conexión viva automática
+    resetOptions: {
+      keepDirtyValues: false, // asegura que values reemplaza todo
+    },
   });
 
   const propertyType = watch("type");
