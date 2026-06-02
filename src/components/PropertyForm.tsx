@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Tab } from "@headlessui/react";
 import {
@@ -229,11 +228,89 @@ export function PropertyForm({
   isSubmitting = false,
   submitLabel = "Guardar",
 }: PropertyFormProps) {
+  // 🚨 MAGIA APLICADA: Calculamos los datos EXACTOS y LIMPIOS antes de que el formulario nazca
+  const vReq = initialValues?.valuationRequest || {};
+
+  const sanitizeData = (source: any) => {
+    const sanitized: any = {};
+    if (!source) return sanitized;
+
+    Object.entries(source).forEach(([key, value]) => {
+      if (value === null) return;
+      if (
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        !(value instanceof Date)
+      )
+        return;
+      sanitized[key] = value;
+    });
+    return sanitized;
+  };
+
+  const cleanBase = sanitizeData(initialValues);
+  const cleanReq = sanitizeData(vReq);
+
+  let formattedRequiredDate = cleanReq.requiredDate || cleanBase.requiredDate;
+  if (formattedRequiredDate instanceof Date) {
+    formattedRequiredDate = formattedRequiredDate.toISOString().split("T")[0];
+  } else if (
+    typeof formattedRequiredDate === "string" &&
+    formattedRequiredDate.includes("T")
+  ) {
+    formattedRequiredDate = formattedRequiredDate.split("T")[0];
+  }
+
+  let formattedInspectionDate = cleanBase.inspectionDate;
+  if (formattedInspectionDate instanceof Date) {
+    formattedInspectionDate = formattedInspectionDate
+      .toISOString()
+      .split("T")[0];
+  } else if (
+    typeof formattedInspectionDate === "string" &&
+    formattedInspectionDate.includes("T")
+  ) {
+    formattedInspectionDate = formattedInspectionDate.split("T")[0];
+  }
+
+  // Creamos el "molde perfecto" de los datos
+  const computedValues = initialValues
+    ? {
+        ...cleanBase,
+        ...cleanReq,
+
+        type: cleanBase.type || "HOUSE",
+        state: cleanBase.state || "Pichincha",
+        inspectionDate: formattedInspectionDate,
+        requiredDate: formattedRequiredDate,
+
+        // Casting estricto a booleano, a prueba de fallos
+        sidewalkAvailable: cleanBase.sidewalkAvailable === true,
+        hasPotableWater: cleanBase.hasPotableWater === true,
+        hasStormDrainage: cleanBase.hasStormDrainage === true,
+        hasSanitarySewer: cleanBase.hasSanitarySewer === true,
+        hasElectricityAerial: cleanBase.hasElectricityAerial === true,
+        hasElectricityUnderground: cleanBase.hasElectricityUnderground === true,
+        hasTelephone: cleanBase.hasTelephone === true,
+        hasInternet: cleanBase.hasInternet === true,
+        hasStreetLighting: cleanBase.hasStreetLighting === true,
+        hasGarbageCollection: cleanBase.hasGarbageCollection === true,
+        hasLiens: cleanBase.hasLiens === true,
+        hasEncumbrances: cleanBase.hasEncumbrances === true,
+        hasMaintenanceLogs: cleanBase.hasMaintenanceLogs === true,
+
+        amenities: Array.isArray(cleanBase.amenities)
+          ? cleanBase.amenities
+          : [],
+      }
+    : undefined;
+
+  // Inyectamos el "molde perfecto" usando la propiedad secreta 'values' de React Hook Form.
+  // Esto reemplaza al useEffect() y soluciona TODOS los problemas de pestañas dormidas.
   const {
     register,
     handleSubmit,
     watch,
-    reset,
     formState: { errors },
   } = useForm<PropertyFormData>({
     defaultValues: {
@@ -253,88 +330,8 @@ export function PropertyForm({
       hasEncumbrances: false,
       hasMaintenanceLogs: false,
     },
+    values: computedValues as PropertyFormData, // 🔥 Conexión viva automática
   });
-
-  useEffect(() => {
-    if (!initialValues) return;
-
-    const vReq = initialValues.valuationRequest || {};
-
-    const sanitizeData = (source: any) => {
-      const sanitized: any = {};
-      if (!source) return sanitized;
-
-      Object.entries(source).forEach(([key, value]) => {
-        if (value === null) return;
-        // Permitimos que pasen los arrays (como las amenidades)
-        if (
-          typeof value === "object" &&
-          !Array.isArray(value) &&
-          !(value instanceof Date)
-        )
-          return;
-        sanitized[key] = value;
-      });
-      return sanitized;
-    };
-
-    const cleanBase = sanitizeData(initialValues);
-    const cleanReq = sanitizeData(vReq);
-
-    let formattedRequiredDate = cleanReq.requiredDate || cleanBase.requiredDate;
-    if (formattedRequiredDate instanceof Date) {
-      formattedRequiredDate = formattedRequiredDate.toISOString().split("T")[0];
-    } else if (
-      typeof formattedRequiredDate === "string" &&
-      formattedRequiredDate.includes("T")
-    ) {
-      formattedRequiredDate = formattedRequiredDate.split("T")[0];
-    }
-
-    let formattedInspectionDate = cleanBase.inspectionDate;
-    if (formattedInspectionDate instanceof Date) {
-      formattedInspectionDate = formattedInspectionDate
-        .toISOString()
-        .split("T")[0];
-    } else if (
-      typeof formattedInspectionDate === "string" &&
-      formattedInspectionDate.includes("T")
-    ) {
-      formattedInspectionDate = formattedInspectionDate.split("T")[0];
-    }
-
-    const finalFormValues = {
-      ...cleanBase,
-      ...cleanReq,
-
-      type: cleanBase.type || "HOUSE",
-      state: cleanBase.state || "Pichincha",
-      inspectionDate: formattedInspectionDate,
-      requiredDate: formattedRequiredDate,
-
-      // 🚨 MAGIA EXTREMA: Casting estricto a booleano (=== true)
-      // Esto soluciona de raíz que React Hook Form ignore los checkboxes si vienen vacíos de la DB.
-      sidewalkAvailable: cleanBase.sidewalkAvailable === true,
-      hasPotableWater: cleanBase.hasPotableWater === true,
-      hasStormDrainage: cleanBase.hasStormDrainage === true,
-      hasSanitarySewer: cleanBase.hasSanitarySewer === true,
-      hasElectricityAerial: cleanBase.hasElectricityAerial === true,
-      hasElectricityUnderground: cleanBase.hasElectricityUnderground === true,
-      hasTelephone: cleanBase.hasTelephone === true,
-      hasInternet: cleanBase.hasInternet === true,
-      hasStreetLighting: cleanBase.hasStreetLighting === true,
-      hasGarbageCollection: cleanBase.hasGarbageCollection === true,
-      hasLiens: cleanBase.hasLiens === true,
-      hasEncumbrances: cleanBase.hasEncumbrances === true,
-      hasMaintenanceLogs: cleanBase.hasMaintenanceLogs === true,
-
-      // Extracción estricta del Array de Amenidades (Múltiples checkboxes)
-      amenities: Array.isArray(cleanBase.amenities) ? cleanBase.amenities : [],
-    };
-
-    console.log("🎯 Checkboxes Inyectados:", finalFormValues);
-    reset(finalFormValues);
-  }, [initialValues, reset]);
 
   const propertyType = watch("type");
 
