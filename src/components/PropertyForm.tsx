@@ -255,70 +255,95 @@ export function PropertyForm({
     },
   });
 
-  // 🚨 MAGIA APLICADA: Extraer los datos de la sub-tabla valuationRequest
+  // 🚨 MAGIA APLICADA: Filtro de limpieza profunda para hidratar el formulario
   useEffect(() => {
-    console.log("🚨 2. EL FORMULARIO RECIBIÓ ESTO:", initialValues);
-    if (initialValues) {
-      // Extraemos los datos de la solicitud de avalúo si existen
-      const vReq = initialValues.valuationRequest || {};
+    if (!initialValues) return;
 
-      // Formatear la fecha requerida (si viene con hora, cortarla a YYYY-MM-DD para el input type="date")
-      let formattedRequiredDate = vReq.requiredDate;
-      if (formattedRequiredDate && formattedRequiredDate.includes("T")) {
-        formattedRequiredDate = formattedRequiredDate.split("T")[0];
-      }
+    // Extraemos la solicitud anidada si existe
+    const vReq = initialValues.valuationRequest || {};
 
-      // Formatear la fecha de inspección
-      let formattedInspectionDate = initialValues.inspectionDate;
-      if (
-        typeof formattedInspectionDate === "string" &&
-        formattedInspectionDate.includes("T")
-      ) {
-        formattedInspectionDate = formattedInspectionDate.split("T")[0];
-      }
+    // 1. FUNCIÓN PURIFICADORA: Quita nulls y objetos anidados que confunden a React Hook Form
+    const sanitizeData = (source: any) => {
+      const sanitized: any = {};
+      if (!source) return sanitized;
 
-      reset({
-        // Datos base de la propiedad
-        ...initialValues,
-        type: initialValues.type || "HOUSE",
-        state: initialValues.state || "Pichincha",
-        inspectionDate: formattedInspectionDate,
-        sidewalkAvailable: initialValues.sidewalkAvailable ?? false,
-        hasPotableWater: initialValues.hasPotableWater ?? false,
-        hasStormDrainage: initialValues.hasStormDrainage ?? false,
-        hasSanitarySewer: initialValues.hasSanitarySewer ?? false,
-        hasElectricityAerial: initialValues.hasElectricityAerial ?? false,
-        hasElectricityUnderground:
-          initialValues.hasElectricityUnderground ?? false,
-        hasTelephone: initialValues.hasTelephone ?? false,
-        hasInternet: initialValues.hasInternet ?? false,
-        hasStreetLighting: initialValues.hasStreetLighting ?? false,
-        hasGarbageCollection: initialValues.hasGarbageCollection ?? false,
-        hasLiens: initialValues.hasLiens ?? false,
-        hasEncumbrances: initialValues.hasEncumbrances ?? false,
-        hasMaintenanceLogs: initialValues.hasMaintenanceLogs ?? false,
+      Object.entries(source).forEach(([key, value]) => {
+        // Ignorar valores nulos de Prisma
+        if (value === null) return;
 
-        // Datos extraídos (aplanados) de la solicitud
-        financialInstitution:
-          vReq.financialInstitution || initialValues.financialInstitution,
-        branchOffice: vReq.branchOffice || initialValues.branchOffice,
-        creditOfficer: vReq.creditOfficer || initialValues.creditOfficer,
-        clientName: vReq.clientName || initialValues.clientName,
-        clientId: vReq.clientId || initialValues.clientId,
-        clientPhone: vReq.clientPhone || initialValues.clientPhone,
-        clientEmail: vReq.clientEmail || initialValues.clientEmail,
-        legalOwnerName: vReq.legalOwnerName || initialValues.legalOwnerName,
-        legalOwnerId: vReq.legalOwnerId || initialValues.legalOwnerId,
-        purpose: vReq.purpose || initialValues.purpose,
-        purposeDescription:
-          vReq.purposeDescription || initialValues.purposeDescription,
-        valuationObject: vReq.valuationObject || initialValues.valuationObject,
-        requestedLoanAmount:
-          vReq.requestedLoanAmount || initialValues.requestedLoanAmount,
-        loanTerm: vReq.loanTerm || initialValues.loanTerm,
-        requiredDate: formattedRequiredDate || initialValues.requiredDate,
+        // Mantener Arrays (como amenities) pero ignorar otros objetos complejos anidados (como photos)
+        if (
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          !(value instanceof Date)
+        )
+          return;
+
+        sanitized[key] = value;
       });
+      return sanitized;
+    };
+
+    // Limpiamos los dos paquetes de datos
+    const cleanBase = sanitizeData(initialValues);
+    const cleanReq = sanitizeData(vReq);
+
+    // 2. FORMATEO DE FECHAS (Corta las horas para que los input type="date" las acepten)
+    let formattedRequiredDate = cleanReq.requiredDate || cleanBase.requiredDate;
+    if (formattedRequiredDate instanceof Date) {
+      formattedRequiredDate = formattedRequiredDate.toISOString().split("T")[0];
+    } else if (
+      typeof formattedRequiredDate === "string" &&
+      formattedRequiredDate.includes("T")
+    ) {
+      formattedRequiredDate = formattedRequiredDate.split("T")[0];
     }
+
+    let formattedInspectionDate = cleanBase.inspectionDate;
+    if (formattedInspectionDate instanceof Date) {
+      formattedInspectionDate = formattedInspectionDate
+        .toISOString()
+        .split("T")[0];
+    } else if (
+      typeof formattedInspectionDate === "string" &&
+      formattedInspectionDate.includes("T")
+    ) {
+      formattedInspectionDate = formattedInspectionDate.split("T")[0];
+    }
+
+    // 3. ENSAMBLAJE FINAL
+    const finalFormValues = {
+      ...cleanBase, // Datos de la propiedad sin nulos
+      ...cleanReq, // Datos de la solicitud aplanados
+
+      // Forzar valores por defecto o formateados
+      type: cleanBase.type || "HOUSE",
+      state: cleanBase.state || "Pichincha",
+      inspectionDate: formattedInspectionDate,
+      requiredDate: formattedRequiredDate,
+
+      // Asegurar que los booleanos tengan un valor estricto para los checkboxes
+      sidewalkAvailable: initialValues.sidewalkAvailable ?? false,
+      hasPotableWater: initialValues.hasPotableWater ?? false,
+      hasStormDrainage: initialValues.hasStormDrainage ?? false,
+      hasSanitarySewer: initialValues.hasSanitarySewer ?? false,
+      hasElectricityAerial: initialValues.hasElectricityAerial ?? false,
+      hasElectricityUnderground:
+        initialValues.hasElectricityUnderground ?? false,
+      hasTelephone: initialValues.hasTelephone ?? false,
+      hasInternet: initialValues.hasInternet ?? false,
+      hasStreetLighting: initialValues.hasStreetLighting ?? false,
+      hasGarbageCollection: initialValues.hasGarbageCollection ?? false,
+      hasLiens: initialValues.hasLiens ?? false,
+      hasEncumbrances: initialValues.hasEncumbrances ?? false,
+      hasMaintenanceLogs: initialValues.hasMaintenanceLogs ?? false,
+    };
+
+    console.log(
+      "🎯 Datos aplanados y limpios inyectados al formulario:",
+      finalFormValues,
+    );
+    reset(finalFormValues);
   }, [initialValues, reset]);
 
   const propertyType = watch("type");
