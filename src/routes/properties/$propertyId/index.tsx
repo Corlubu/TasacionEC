@@ -566,7 +566,7 @@ function PropertyDetailPage() {
                     ) : (
                       <>
                         <Download className="h-5 w-5" />
-                        <span>Descargar PDF</span>
+                        <span>Descargar PDF.</span>
                       </>
                     )}
                   </button>
