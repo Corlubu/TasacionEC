@@ -41,6 +41,7 @@ RUN npx tsr generate
 
 # 9. Descargamos el navegador invisible de Playwright (Chromium)
 RUN npx playwright install chromium
+RUN npx playwright install-deps chromium
 
 # --- NUEVO: VARIABLES TEMPORALES PARA PASAR LA VALIDACIÓN DE ZOD ---
 ENV NODE_ENV="production"

@@ -25,42 +25,45 @@ async function getUserIdFromToken(token: string): Promise<number> {
 async function generatePDFFromHTML(html: string): Promise<Buffer> {
   let browser;
   try {
-    // Launch browser with appropriate flags for Docker environment
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--disable-gpu",
+      ],
     });
-    
+
     const page = await browser.newPage();
-    
-    // Set content and wait for it to be fully loaded
-    await page.setContent(html, { 
-      waitUntil: 'networkidle',
-      timeout: 30000 
+
+    await page.setContent(html, {
+      waitUntil: "networkidle",
+      timeout: 30000,
     });
-    
-    // Generate PDF with professional settings
+
+    // 🚨 MAGIA APLICADA: Obligamos al navegador a esperar a que las fuentes web terminen de descargar
+    await page.evaluate(() => document.fonts.ready);
+
+    // Le damos 1 segundo de respiro extra para que renderice las imágenes pesadas
+    await page.waitForTimeout(1000);
+
     const pdfBuffer = await page.pdf({
-      format: 'A4',
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
+        top: "20mm",
+        right: "15mm",
+        bottom: "20mm",
+        left: "15mm",
       },
       displayHeaderFooter: false,
       preferCSSPageSize: false,
     });
-    
+
     await browser.close();
-    
+
     return Buffer.from(pdfBuffer);
   } catch (error) {
     if (browser) {
@@ -74,14 +77,14 @@ async function generatePDFFromHTML(html: string): Promise<Buffer> {
 function generateReportHTML(report: any, property: any): string {
   const currentDate = new Date();
   const reportTimestamp = currentDate.toISOString();
-  const formattedDate = currentDate.toLocaleDateString('es-EC', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'America/Guayaquil'
+  const formattedDate = currentDate.toLocaleDateString("es-EC", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "America/Guayaquil",
   });
 
   return `
@@ -92,18 +95,24 @@ function generateReportHTML(report: any, property: any): string {
   <meta name="document-hash" content="${report.documentHash}">
   <meta name="generation-timestamp" content="${reportTimestamp}">
   <title>Reporte de Valoración - ${property.address}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     @page {
       size: A4;
       margin: 20mm 15mm;
     }
-    
+
     * {
       box-sizing: border-box;
     }
-    
-    body { 
-      font-family: 'Helvetica', 'Arial', sans-serif; 
+
+    body {
+      /* Usamos la fuente inyectada Inter como principal */
+      font-family: 'Inter', 'Helvetica', 'Arial', sans-serif;
       margin: 0;
       padding: 20px;
       line-height: 1.6;
@@ -111,26 +120,26 @@ function generateReportHTML(report: any, property: any): string {
       font-size: 11pt;
       background: white;
     }
-    
-    h1 { 
-      color: #1e3a8a; 
+
+    h1 {
+      color: #1e3a8a;
       text-align: center;
       font-size: 22pt;
       margin-bottom: 8px;
       font-weight: 700;
       letter-spacing: -0.5px;
     }
-    
-    h2 { 
-      color: #1e3a8a; 
-      border-bottom: 3px solid #3b82f6; 
+
+    h2 {
+      color: #1e3a8a;
+      border-bottom: 3px solid #3b82f6;
       padding-bottom: 8px;
       margin-top: 25px;
       margin-bottom: 15px;
       font-size: 16pt;
       font-weight: 600;
     }
-    
+
     h3 {
       color: #1e40af;
       font-size: 13pt;
@@ -138,7 +147,7 @@ function generateReportHTML(report: any, property: any): string {
       margin-bottom: 10px;
       font-weight: 600;
     }
-    
+
     h4 {
       color: #1e40af;
       font-size: 11pt;
@@ -146,9 +155,9 @@ function generateReportHTML(report: any, property: any): string {
       margin-bottom: 8px;
       font-weight: 600;
     }
-    
-    .header { 
-      text-align: center; 
+
+    .header {
+      text-align: center;
       margin-bottom: 35px;
       border-bottom: 4px solid #3b82f6;
       padding-bottom: 20px;
@@ -156,14 +165,14 @@ function generateReportHTML(report: any, property: any): string {
       padding: 25px;
       margin: -20px -20px 35px -20px;
     }
-    
+
     .header .subtitle {
       font-size: 10pt;
       color: #475569;
       margin-top: 6px;
       font-weight: 500;
     }
-    
+
     .header .logo {
       font-size: 28pt;
       font-weight: 800;
@@ -171,63 +180,64 @@ function generateReportHTML(report: any, property: any): string {
       margin-bottom: 5px;
       letter-spacing: -1px;
     }
-    
-    .section { 
+
+    .section {
       margin-bottom: 25px;
       page-break-inside: avoid;
     }
-    
-    .value-box { 
+
+    .value-box {
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      padding: 18px; 
-      border-radius: 10px; 
+      padding: 18px;
+      border-radius: 10px;
       margin: 12px 0;
       border-left: 5px solid #3b82f6;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    
-    .value-label { 
-      font-weight: 600; 
+
+    .value-label {
+      font-weight: 600;
       color: #1e40af;
       font-size: 11pt;
       margin-bottom: 6px;
     }
-    
-    .value-amount { 
-      font-size: 24pt; 
-      color: #2563eb; 
+
+    .value-amount {
+      font-size: 24pt;
+      color: #2563eb;
       font-weight: 700;
       margin-top: 4px;
       letter-spacing: -0.5px;
     }
-    
+
     .final-value-box {
       background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
       border-left: 5px solid #16a34a;
       padding: 22px;
       margin: 18px 0;
     }
-    
+
     .final-value-amount {
       color: #15803d;
       font-size: 28pt;
+      font-weight: 700;
     }
-    
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin: 18px 0;
       font-size: 10pt;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    
-    th, td { 
-      border: 1px solid #e2e8f0; 
-      padding: 12px 14px; 
+
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 12px 14px;
       text-align: left;
     }
-    
-    th { 
+
+    th {
       background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
       color: white;
       font-weight: 600;
@@ -235,34 +245,34 @@ function generateReportHTML(report: any, property: any): string {
       font-size: 9pt;
       letter-spacing: 0.5px;
     }
-    
+
     tr:nth-child(even) {
       background-color: #f8fafc;
     }
-    
+
     tr:hover {
       background-color: #f1f5f9;
     }
-    
+
     .glossary-item {
       margin-bottom: 16px;
       padding-left: 15px;
       border-left: 3px solid #e2e8f0;
     }
-    
+
     .glossary-term {
       font-weight: 600;
       color: #1e40af;
       font-size: 11pt;
       margin-bottom: 4px;
     }
-    
+
     .limiting-condition {
       margin-bottom: 10px;
       padding-left: 20px;
       position: relative;
     }
-    
+
     .limiting-condition:before {
       content: "•";
       position: absolute;
@@ -271,17 +281,17 @@ function generateReportHTML(report: any, property: any): string {
       font-weight: bold;
       font-size: 14pt;
     }
-    
-    .footer { 
-      margin-top: 40px; 
-      text-align: center; 
-      font-size: 9pt; 
+
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 9pt;
       color: #64748b;
       border-top: 3px solid #e2e8f0;
       padding-top: 20px;
       page-break-inside: avoid;
     }
-    
+
     .metadata {
       background: #f8fafc;
       padding: 15px;
@@ -291,11 +301,11 @@ function generateReportHTML(report: any, property: any): string {
       font-family: 'Courier New', monospace;
       border: 1px solid #e2e8f0;
     }
-    
+
     .metadata div {
       margin: 4px 0;
     }
-    
+
     .warning-box {
       background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
       border: 2px solid #f59e0b;
@@ -304,22 +314,22 @@ function generateReportHTML(report: any, property: any): string {
       margin: 18px 0;
       box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);
     }
-    
+
     .warning-box strong {
       color: #92400e;
       font-size: 11pt;
     }
-    
+
     p {
       text-align: justify;
       margin-bottom: 10px;
       line-height: 1.7;
     }
-    
+
     .page-break {
       page-break-after: always;
     }
-    
+
     .highlight-box {
       background: #fef9e7;
       border-left: 4px solid #f59e0b;
@@ -327,21 +337,21 @@ function generateReportHTML(report: any, property: any): string {
       margin: 12px 0;
       border-radius: 4px;
     }
-    
+
     .info-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
       margin: 15px 0;
     }
-    
+
     .info-card {
       background: #f8fafc;
       padding: 12px;
       border-radius: 6px;
       border: 1px solid #e2e8f0;
     }
-    
+
     .info-card-label {
       font-size: 9pt;
       color: #64748b;
@@ -350,25 +360,25 @@ function generateReportHTML(report: any, property: any): string {
       margin-bottom: 4px;
       font-weight: 600;
     }
-    
+
     .info-card-value {
       font-size: 13pt;
       color: #1e293b;
       font-weight: 600;
     }
-    
+
     .photo-gallery {
       margin-top: 30px;
       page-break-inside: avoid;
     }
-    
+
     .photo-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
       margin: 20px 0;
     }
-    
+
     .photo-item {
       page-break-inside: avoid;
       border: 1px solid #e2e8f0;
@@ -377,19 +387,19 @@ function generateReportHTML(report: any, property: any): string {
       background: white;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
+
     .photo-item img {
       width: 100%;
       height: 280px;
       object-fit: cover;
       display: block;
     }
-    
+
     .photo-info {
       padding: 12px;
       background: #f8fafc;
     }
-    
+
     .photo-category {
       font-weight: 600;
       color: #1e40af;
@@ -398,13 +408,13 @@ function generateReportHTML(report: any, property: any): string {
       letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
-    
+
     .photo-caption {
       font-size: 9pt;
       color: #64748b;
       line-height: 1.4;
     }
-    
+
     .no-photos-message {
       text-align: center;
       padding: 40px;
@@ -413,25 +423,25 @@ function generateReportHTML(report: any, property: any): string {
       color: #64748b;
       font-style: italic;
     }
-    
+
     .mb-4 {
       margin-bottom: 16px;
     }
-    
+
     .mt-4 {
       margin-top: 16px;
     }
-    
+
     @media print {
       body {
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
-      
+
       .page-break {
         page-break-after: always;
       }
-      
+
       .section {
         page-break-inside: avoid;
       }
@@ -455,80 +465,100 @@ function generateReportHTML(report: any, property: any): string {
       <tr><td><strong>Ciudad</strong></td><td>${property.city}, ${property.state}</td></tr>
       <tr><td><strong>Tipo de Propiedad</strong></td><td>${property.type}</td></tr>
       <tr><td><strong>Coordenadas GPS</strong></td><td>Lat: ${property.latitude}, Lng: ${property.longitude}</td></tr>
-      <tr><td><strong>Área del Terreno</strong></td><td>${property.landArea || 'N/A'} m²</td></tr>
-      <tr><td><strong>Área Construida</strong></td><td>${property.builtArea || 'N/A'} m²</td></tr>
-      ${property.bedrooms ? `<tr><td><strong>Dormitorios</strong></td><td>${property.bedrooms}</td></tr>` : ''}
-      ${property.bathrooms ? `<tr><td><strong>Baños</strong></td><td>${property.bathrooms}</td></tr>` : ''}
-      ${property.yearBuilt ? `<tr><td><strong>Año de Construcción</strong></td><td>${property.yearBuilt}</td></tr>` : ''}
-      ${property.inspectionDate ? `<tr><td><strong>Fecha de Inspección</strong></td><td>${new Date(property.inspectionDate).toLocaleDateString('es-EC')}</td></tr>` : ''}
+      <tr><td><strong>Área del Terreno</strong></td><td>${property.landArea || "N/A"} m²</td></tr>
+      <tr><td><strong>Área Construida</strong></td><td>${property.builtArea || "N/A"} m²</td></tr>
+      ${property.bedrooms ? `<tr><td><strong>Dormitorios</strong></td><td>${property.bedrooms}</td></tr>` : ""}
+      ${property.bathrooms ? `<tr><td><strong>Baños</strong></td><td>${property.bathrooms}</td></tr>` : ""}
+      ${property.yearBuilt ? `<tr><td><strong>Año de Construcción</strong></td><td>${property.yearBuilt}</td></tr>` : ""}
+      ${property.inspectionDate ? `<tr><td><strong>Fecha de Inspección</strong></td><td>${new Date(property.inspectionDate).toLocaleDateString("es-EC")}</td></tr>` : ""}
     </table>
   </div>
 
-  ${property.propertyRegime ? `<div class="section">
+  ${
+    property.propertyRegime
+      ? `<div class="section">
     <h2>1.1 INFORMACIÓN DE CUMPLIMIENTO SBS</h2>
     <table>
       <tr><th>Campo</th><th>Valor</th></tr>
       <tr><td><strong>Régimen de Propiedad</strong></td><td>${property.propertyRegime}</td></tr>
-      ${property.inspectionDate ? `<tr><td><strong>Fecha de Inspección Física</strong></td><td>${new Date(property.inspectionDate).toLocaleDateString('es-EC')}</td></tr>` : ''}
-      ${property.personPresentAtInspection ? `<tr><td><strong>Persona Presente en Inspección</strong></td><td>${property.personPresentAtInspection}</td></tr>` : ''}
-      ${property.socioeconomicLevel ? `<tr><td><strong>Nivel Socioeconómico del Sector</strong></td><td>${property.socioeconomicLevel}</td></tr>` : ''}
-      ${property.saturationIndex ? `<tr><td><strong>Índice de Saturación</strong></td><td>${property.saturationIndex}%</td></tr>` : ''}
-      ${property.cos ? `<tr><td><strong>COS (Coef. Ocupación Suelo)</strong></td><td>${property.cos}</td></tr>` : ''}
-      ${property.cus ? `<tr><td><strong>CUS (Coef. Utilización Suelo)</strong></td><td>${property.cus}</td></tr>` : ''}
-      ${property.numberOfFacades ? `<tr><td><strong>Número de Fachadas</strong></td><td>${property.numberOfFacades}</td></tr>` : ''}
-      ${property.type === 'APARTMENT' && property.aliquotPercentage ? `<tr><td><strong>Alícuota (Propiedad Horizontal)</strong></td><td>${property.aliquotPercentage}%</td></tr>` : ''}
-      ${property.rentableUnits ? `<tr><td><strong>Unidades Arrendables</strong></td><td>${property.rentableUnits}</td></tr>` : ''}
-      ${property.hasMaintenanceLogs !== null ? `<tr><td><strong>Registros de Mantenimiento</strong></td><td>${property.hasMaintenanceLogs ? 'Sí' : 'No'}</td></tr>` : ''}
+      ${property.inspectionDate ? `<tr><td><strong>Fecha de Inspección Física</strong></td><td>${new Date(property.inspectionDate).toLocaleDateString("es-EC")}</td></tr>` : ""}
+      ${property.personPresentAtInspection ? `<tr><td><strong>Persona Presente en Inspección</strong></td><td>${property.personPresentAtInspection}</td></tr>` : ""}
+      ${property.socioeconomicLevel ? `<tr><td><strong>Nivel Socioeconómico del Sector</strong></td><td>${property.socioeconomicLevel}</td></tr>` : ""}
+      ${property.saturationIndex ? `<tr><td><strong>Índice de Saturación</strong></td><td>${property.saturationIndex}%</td></tr>` : ""}
+      ${property.cos ? `<tr><td><strong>COS (Coef. Ocupación Suelo)</strong></td><td>${property.cos}</td></tr>` : ""}
+      ${property.cus ? `<tr><td><strong>CUS (Coef. Utilización Suelo)</strong></td><td>${property.cus}</td></tr>` : ""}
+      ${property.numberOfFacades ? `<tr><td><strong>Número de Fachadas</strong></td><td>${property.numberOfFacades}</td></tr>` : ""}
+      ${property.type === "APARTMENT" && property.aliquotPercentage ? `<tr><td><strong>Alícuota (Propiedad Horizontal)</strong></td><td>${property.aliquotPercentage}%</td></tr>` : ""}
+      ${property.rentableUnits ? `<tr><td><strong>Unidades Arrendables</strong></td><td>${property.rentableUnits}</td></tr>` : ""}
+      ${property.hasMaintenanceLogs !== null ? `<tr><td><strong>Registros de Mantenimiento</strong></td><td>${property.hasMaintenanceLogs ? "Sí" : "No"}</td></tr>` : ""}
     </table>
-    ${property.panoramicCharacteristics ? `
+    ${
+      property.panoramicCharacteristics
+        ? `
     <div class="mt-4">
       <h4>Características Panorámicas:</h4>
       <p style="font-size: 10pt; color: #374151;">${property.panoramicCharacteristics}</p>
     </div>
-    ` : ''}
-    ${property.easementsAndRestrictions ? `
+    `
+        : ""
+    }
+    ${
+      property.easementsAndRestrictions
+        ? `
     <div class="mt-4">
       <h4>Servidumbres y Restricciones:</h4>
       <p style="font-size: 10pt; color: #374151;">${property.easementsAndRestrictions}</p>
     </div>
-    ` : ''}
-  </div>` : ''}
+    `
+        : ""
+    }
+  </div>`
+      : ""
+  }
 
   <div class="section">
-    <h2>2. VALORACIÓN${report.valuationObject ? ` - ${report.valuationObject}` : ''}</h2>
-    ${report.valuationObject ? `
+    <h2>2. VALORACIÓN${report.valuationObject ? ` - ${report.valuationObject}` : ""}</h2>
+    ${
+      report.valuationObject
+        ? `
     <div class="highlight-box mb-4">
-      <p><strong>Objeto del Avalúo:</strong> ${report.valuationObject === 'MARKET_VALUE' ? 'Valor Justo de Mercado' : report.valuationObject === 'LIQUIDATION_VALUE' ? 'Valor de Liquidación' : report.valuationObject === 'RESCUE_VALUE' ? 'Valor de Rescate' : 'Valor de Desecho'}</p>
+      <p><strong>Objeto del Avalúo:</strong> ${report.valuationObject === "MARKET_VALUE" ? "Valor Justo de Mercado" : report.valuationObject === "LIQUIDATION_VALUE" ? "Valor de Liquidación" : report.valuationObject === "RESCUE_VALUE" ? "Valor de Rescate" : "Valor de Desecho"}</p>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
     <div class="info-grid">
       <div class="value-box">
         <div class="value-label">Valor de Mercado</div>
         <div style="font-size: 9pt; color: #64748b; margin-bottom: 6px;">Método de Homologación</div>
-        <div class="value-amount">$${Math.round(report.marketValue || 0).toLocaleString('es-EC')}</div>
+        <div class="value-amount">$${Math.round(report.marketValue || 0).toLocaleString("es-EC")}</div>
       </div>
       <div class="value-box">
         <div class="value-label">Valor de Costo</div>
         <div style="font-size: 9pt; color: #64748b; margin-bottom: 6px;">Método de Reemplazo</div>
-        <div class="value-amount">$${Math.round(report.costValue || 0).toLocaleString('es-EC')}</div>
+        <div class="value-amount">$${Math.round(report.costValue || 0).toLocaleString("es-EC")}</div>
       </div>
     </div>
-    ${report.incomeValue ? `
+    ${
+      report.incomeValue
+        ? `
     <div class="value-box">
       <div class="value-label">Valor de Renta</div>
       <div style="font-size: 9pt; color: #64748b; margin-bottom: 6px;">Método de Capitalización</div>
-      <div class="value-amount">$${Math.round(report.incomeValue).toLocaleString('es-EC')}</div>
+      <div class="value-amount">$${Math.round(report.incomeValue).toLocaleString("es-EC")}</div>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
     <div class="final-value-box">
       <div class="value-label" style="color: #15803d; font-size: 13pt;">VALOR FINAL AVALUADO</div>
-      <div class="final-value-amount">$${Math.round(report.finalValue || 0).toLocaleString('es-EC')}</div>
+      <div class="final-value-amount">$${Math.round(report.finalValue || 0).toLocaleString("es-EC")}</div>
     </div>
   </div>
 
   <div class="section">
     <h2>3. GLOSARIO DE TÉRMINOS Y DEFINICIONES DE VALOR</h2>
-    
+
     <div class="glossary-item">
       <div class="glossary-term">Valor de Mercado:</div>
       <p>El precio más probable por el cual una propiedad se intercambiaría entre un comprador y un vendedor dispuestos, ambos razonablemente informados, actuando sin presión y en condiciones normales de mercado.</p>
@@ -562,13 +592,13 @@ function generateReportHTML(report: any, property: any): string {
 
   <div class="section page-break">
     <h2>4. DECLARACIONES Y CONDICIONES LIMITANTES</h2>
-    
+
     <h3>4.1 Propósito y Uso del Avalúo</h3>
-    <p>Este avalúo ha sido preparado exclusivamente para ${property.valuationRequest?.purpose || 'el propósito indicado por el cliente'} y no debe ser utilizado para ningún otro propósito sin el consentimiento expreso del perito valuador.</p>
+    <p>Este avalúo ha sido preparado exclusivamente para ${property.valuationRequest?.purpose || "el propósito indicado por el cliente"} y no debe ser utilizado para ningún otro propósito sin el consentimiento expreso del perito valuador.</p>
 
     <h3>4.2 Inspección y Verificación</h3>
     <div class="limiting-condition">
-      La inspección de la propiedad se realizó el ${property.inspectionDate ? new Date(property.inspectionDate).toLocaleDateString('es-EC') : 'fecha indicada en el reporte'}.
+      La inspección de la propiedad se realizó el ${property.inspectionDate ? new Date(property.inspectionDate).toLocaleDateString("es-EC") : "fecha indicada en el reporte"}.
     </div>
     <div class="limiting-condition">
       El perito no es responsable de condiciones ocultas o defectos estructurales que no sean aparentes durante la inspección visual.
@@ -582,7 +612,7 @@ function generateReportHTML(report: any, property: any): string {
       Se asume que toda la información proporcionada por el cliente, propietario o fuentes oficiales es correcta y confiable.
     </div>
     <div class="limiting-condition">
-      Las medidas y áreas reportadas se basan en ${property.areaOnSite ? 'mediciones realizadas en sitio' : 'información proporcionada por el propietario o documentos legales'}.
+      Las medidas y áreas reportadas se basan en ${property.areaOnSite ? "mediciones realizadas en sitio" : "información proporcionada por el propietario o documentos legales"}.
     </div>
     <div class="limiting-condition">
       Se asume que no existen gravámenes, servidumbres o restricciones no divulgadas que afecten el valor de la propiedad.
@@ -598,7 +628,7 @@ function generateReportHTML(report: any, property: any): string {
     <div class="limiting-condition">
       Los valores de comparables utilizados se obtuvieron de ${report.parametersSnapshot?.marketData?.comparablesCount || 0} propiedades similares en el área.
     </div>
-    ${!property.areaAccordingToDeed ? '<div class="limiting-condition">No se proporcionó documentación legal de la propiedad, por lo que las áreas reportadas no han sido verificadas contra escrituras.</div>' : ''}
+    ${!property.areaAccordingToDeed ? '<div class="limiting-condition">No se proporcionó documentación legal de la propiedad, por lo que las áreas reportadas no han sido verificadas contra escrituras.</div>' : ""}
 
     <h3>4.5 Limitaciones de Responsabilidad</h3>
     <div class="limiting-condition">
@@ -635,59 +665,65 @@ function generateReportHTML(report: any, property: any): string {
     <p>${report.valueJustification}</p>
   </div>
 
-  ${property.photos && property.photos.length > 0 ? `
+  ${
+    property.photos && property.photos.length > 0
+      ? `
   <div class="section page-break">
     <h2>8. ANEXO FOTOGRÁFICO</h2>
     <p>A continuación se presentan las fotografías del inmueble evaluado, organizadas por categoría para facilitar la comprensión visual de sus características y estado de conservación.</p>
-    
+
     <div class="photo-gallery">
       <div class="photo-grid">
-        ${property.photos.map((photo: any) => {
-          // Translate category to Spanish
-          const categoryLabels: Record<string, string> = {
-            facade: "Fachada",
-            interior: "Interior",
-            kitchen: "Cocina",
-            bathroom: "Baño",
-            damage: "Daño/Patología",
-            document: "Documento",
-          };
-          
-          const categoryLabel = categoryLabels[photo.category] || photo.category;
-          
-          return `
+        ${property.photos
+          .map((photo: any) => {
+            const categoryLabels: Record<string, string> = {
+              facade: "Fachada",
+              interior: "Interior",
+              kitchen: "Cocina",
+              bathroom: "Baño",
+              damage: "Daño/Patología",
+              document: "Documento",
+            };
+
+            const categoryLabel =
+              categoryLabels[photo.category] || photo.category;
+
+            return `
             <div class="photo-item">
               <img src="${photo.url}" alt="${categoryLabel}" />
               <div class="photo-info">
                 <div class="photo-category">${categoryLabel}</div>
-                ${photo.caption ? `<div class="photo-caption">${photo.caption}</div>` : ''}
+                ${photo.caption ? `<div class="photo-caption">${photo.caption}</div>` : ""}
               </div>
             </div>
           `;
-        }).join('')}
+          })
+          .join("")}
       </div>
     </div>
   </div>
-  ` : `
+  `
+      : `
   <div class="section">
     <h2>8. ANEXO FOTOGRÁFICO</h2>
     <div class="no-photos-message">
       No se adjuntaron fotografías para esta propiedad.
     </div>
   </div>
-  `}
+  `
+  }
 
   <div class="section">
     <h2>9. DESGLOSE DE COSTOS</h2>
     <table>
       <tr><th>Concepto</th><th>Valor</th></tr>
-      <tr><td>Valor del Terreno</td><td>$${Math.round(report.landValue || 0).toLocaleString('es-EC')}</td></tr>
-      <tr><td>Costo de Construcción</td><td>$${Math.round(report.constructionCost || 0).toLocaleString('es-EC')}</td></tr>
-      <tr><td>Depreciación (${report.depreciationMethod})</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.depreciationAmount || 0).toLocaleString('es-EC')}</td></tr>
-      ${report.additionalWorksCost && report.additionalWorksCost > 0 ? `<tr><td>Obras Adicionales</td><td>$${Math.round(report.additionalWorksCost).toLocaleString('es-EC')}</td></tr>` : ''}
+      <tr><td>Valor del Terreno</td><td>$${Math.round(report.landValue || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Costo de Construcción</td><td>$${Math.round(report.constructionCost || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Depreciación (${report.depreciationMethod})</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.depreciationAmount || 0).toLocaleString("es-EC")}</td></tr>
+      ${report.additionalWorksCost && report.additionalWorksCost > 0 ? `<tr><td>Obras Adicionales</td><td>$${Math.round(report.additionalWorksCost).toLocaleString("es-EC")}</td></tr>` : ""}
       <tr style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); font-weight: 700;">
         <td>TOTAL VALOR DE COSTO</td>
-        <td style="color: #2563eb;">$${Math.round(report.costValue || 0).toLocaleString('es-EC')}</td>
+        <td style="color: #2563eb;">$${Math.round(report.costValue || 0).toLocaleString("es-EC")}</td>
       </tr>
     </table>
 
@@ -697,27 +733,31 @@ function generateReportHTML(report: any, property: any): string {
       <tr><td>Método de Depreciación</td><td><strong>${report.depreciationMethod}</strong></td></tr>
       <tr><td>Edad Cronológica</td><td>${report.chronologicalAge || 0} años</td></tr>
       <tr><td>Vida Útil Total</td><td>${report.totalUsefulLife || 0} años</td></tr>
-      <tr><td>Vida Útil Remanente</td><td>${report.remainingUsefulLife ? report.remainingUsefulLife.toFixed(2) : '0'} años</td></tr>
-      <tr><td>Porcentaje de Depreciación</td><td><strong>${report.depreciationAmount && report.constructionCost ? ((report.depreciationAmount / (report.constructionCost + report.depreciationAmount)) * 100).toFixed(2) : '0'}%</strong></td></tr>
+      <tr><td>Vida Útil Remanente</td><td>${report.remainingUsefulLife ? report.remainingUsefulLife.toFixed(2) : "0"} años</td></tr>
+      <tr><td>Porcentaje de Depreciación</td><td><strong>${report.depreciationAmount && report.constructionCost ? ((report.depreciationAmount / (report.constructionCost + report.depreciationAmount)) * 100).toFixed(2) : "0"}%</strong></td></tr>
     </table>
   </div>
 
-  ${report.incomeValue ? `
+  ${
+    report.incomeValue
+      ? `
   <div class="section">
     <h2>10. ANÁLISIS DE CAPITALIZACIÓN DE RENTAS</h2>
     <table>
       <tr><th>Concepto</th><th>Valor</th></tr>
-      <tr><td>Renta Mensual Estimada</td><td>$${Math.round(report.estimatedMonthlyRent || 0).toLocaleString('es-EC')}</td></tr>
-      <tr><td>Ingreso Bruto Anual</td><td>$${Math.round(report.annualGrossIncome || 0).toLocaleString('es-EC')}</td></tr>
-      <tr><td>Gastos Operativos Anuales</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.operatingExpenses || 0).toLocaleString('es-EC')}</td></tr>
-      <tr><td>Ingreso Neto Anual</td><td>$${Math.round(report.annualNetIncome || 0).toLocaleString('es-EC')}</td></tr>
+      <tr><td>Renta Mensual Estimada</td><td>$${Math.round(report.estimatedMonthlyRent || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Ingreso Bruto Anual</td><td>$${Math.round(report.annualGrossIncome || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Gastos Operativos Anuales</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.operatingExpenses || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Ingreso Neto Anual</td><td>$${Math.round(report.annualNetIncome || 0).toLocaleString("es-EC")}</td></tr>
       <tr><td>Tasa de Capitalización</td><td>${report.capitalizationRate}%</td></tr>
       <tr style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); font-weight: 700;">
         <td>VALOR POR CAPITALIZACIÓN</td>
-        <td style="color: #2563eb;">$${Math.round(report.incomeValue).toLocaleString('es-EC')}</td></tr>
+        <td style="color: #2563eb;">$${Math.round(report.incomeValue).toLocaleString("es-EC")}</td></tr>
     </table>
   </div>
-  ` : ''}
+  `
+      : ""
+  }
 
   <div class="footer">
     <div class="highlight-box">
@@ -744,12 +784,11 @@ export const generatePDF = baseProcedure
     z.object({
       token: z.string(),
       reportId: z.number(),
-    })
+    }),
   )
   .mutation(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
 
-    // Get report with property data
     const report = await db.valuationReport.findUnique({
       where: { id: input.reportId },
       include: {
@@ -768,7 +807,6 @@ export const generatePDF = baseProcedure
       });
     }
 
-    // Verify access
     if (report.userId !== userId) {
       const user = await db.user.findUnique({ where: { id: userId } });
       if (user?.role !== "ADMIN" && user?.role !== "SUPERVISOR") {
@@ -780,36 +818,31 @@ export const generatePDF = baseProcedure
     }
 
     try {
-      // Generate HTML content
       const html = generateReportHTML(report, report.property);
-      
-      // Generate PDF
+
       const pdfBuffer = await generatePDFFromHTML(html);
-      
-      // Upload to MinIO
+
       const objectKey = `reports/report-${report.id}-${Date.now()}.pdf`;
-      
+
       await s3Client.send(
         new PutObjectCommand({
-          Bucket: "property-photos",
+          Bucket: "property-photos", // Tu bucket de Supabase
           Key: objectKey,
           Body: pdfBuffer,
           ContentType: "application/pdf",
           ContentLength: pdfBuffer.length,
-        })
+        }),
       );
-      
+
       const pdfUrl = `${minioBaseUrl}/property-photos/${objectKey}`;
-      
-      // Update report with PDF URL
+
       const updatedReport = await db.valuationReport.update({
         where: { id: input.reportId },
         data: {
           pdfUrl,
         },
       });
-      
-      // Create audit log
+
       await db.auditLog.create({
         data: {
           userId,
@@ -821,7 +854,7 @@ export const generatePDF = baseProcedure
           metadata: JSON.stringify({ pdfUrl }),
         },
       });
-      
+
       return {
         pdfUrl,
         report: updatedReport,
