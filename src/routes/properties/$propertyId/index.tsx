@@ -81,7 +81,20 @@ function PropertyDetailPage() {
     trpc.generatePDF.mutationOptions({
       onSuccess: (data) => {
         toast.success("¡PDF generado exitosamente!");
-        window.open(data.pdfUrl, "_blank");
+
+        // EL TRUCO ANTI-BLOQUEO: Creamos un enlace invisible y lo clickeamos
+        const link = document.createElement("a");
+        link.href = data.pdfUrl;
+        link.target = "_blank"; // Para que abra en una pestaña nueva
+        link.rel = "noopener noreferrer"; // Por seguridad
+
+        // Opcional: Si prefieres que fuerce la descarga directa a la PC en lugar de abrirlo:
+        // link.download = `Avaluo_${property?.id}.pdf`;
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
         propertyQuery.refetch();
       },
       onError: (error: any) => {
