@@ -230,7 +230,7 @@ export function PropertyForm({
 }: PropertyFormProps) {
   // 🚨 MAGIA APLICADA: Calculamos los datos EXACTOS y LIMPIOS antes de que el formulario nazca
   const vReq = initialValues?.valuationRequest || {};
-
+  console.log(initialValues);
   const sanitizeData = (source: any) => {
     const sanitized: any = {};
     if (!source) return sanitized;
