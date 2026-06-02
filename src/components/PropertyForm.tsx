@@ -255,40 +255,31 @@ export function PropertyForm({
     },
   });
 
-  // 🚨 MAGIA APLICADA: Filtro de limpieza profunda para hidratar el formulario
   useEffect(() => {
     if (!initialValues) return;
 
-    // Extraemos la solicitud anidada si existe
     const vReq = initialValues.valuationRequest || {};
 
-    // 1. FUNCIÓN PURIFICADORA: Quita nulls y objetos anidados que confunden a React Hook Form
     const sanitizeData = (source: any) => {
       const sanitized: any = {};
       if (!source) return sanitized;
 
       Object.entries(source).forEach(([key, value]) => {
-        // Ignorar valores nulos de Prisma
         if (value === null) return;
-
-        // Mantener Arrays (como amenities) pero ignorar otros objetos complejos anidados (como photos)
         if (
           typeof value === "object" &&
           !Array.isArray(value) &&
           !(value instanceof Date)
         )
           return;
-
         sanitized[key] = value;
       });
       return sanitized;
     };
 
-    // Limpiamos los dos paquetes de datos
     const cleanBase = sanitizeData(initialValues);
     const cleanReq = sanitizeData(vReq);
 
-    // 2. FORMATEO DE FECHAS (Corta las horas para que los input type="date" las acepten)
     let formattedRequiredDate = cleanReq.requiredDate || cleanBase.requiredDate;
     if (formattedRequiredDate instanceof Date) {
       formattedRequiredDate = formattedRequiredDate.toISOString().split("T")[0];
@@ -311,18 +302,15 @@ export function PropertyForm({
       formattedInspectionDate = formattedInspectionDate.split("T")[0];
     }
 
-    // 3. ENSAMBLAJE FINAL
     const finalFormValues = {
-      ...cleanBase, // Datos de la propiedad sin nulos
-      ...cleanReq, // Datos de la solicitud aplanados
+      ...cleanBase,
+      ...cleanReq,
 
-      // Forzar valores por defecto o formateados
       type: cleanBase.type || "HOUSE",
       state: cleanBase.state || "Pichincha",
       inspectionDate: formattedInspectionDate,
       requiredDate: formattedRequiredDate,
 
-      // Asegurar que los booleanos tengan un valor estricto para los checkboxes
       sidewalkAvailable: initialValues.sidewalkAvailable ?? false,
       hasPotableWater: initialValues.hasPotableWater ?? false,
       hasStormDrainage: initialValues.hasStormDrainage ?? false,
@@ -438,9 +426,10 @@ export function PropertyForm({
         </Tab.List>
 
         <Tab.Panels className="mt-6">
+          {/* 🚨 MAGIA: unmount={false} previene la destrucción del HTML de la pestaña */}
+
           {/* Tab 1: Basic Information */}
-          <Tab.Panel className="space-y-6">
-            {/* TODO: Interactive Map Integration */}
+          <Tab.Panel unmount={false} className="space-y-6">
             <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
               <p className="text-sm text-yellow-800">
                 <strong>Próxima actualización:</strong> Los campos de latitud y
@@ -990,7 +979,7 @@ export function PropertyForm({
           </Tab.Panel>
 
           {/* Tab 2: Valuation Request */}
-          <Tab.Panel className="space-y-6">
+          <Tab.Panel unmount={false} className="space-y-6">
             <div>
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Entidad Solicitante
@@ -1232,7 +1221,7 @@ export function PropertyForm({
           </Tab.Panel>
 
           {/* Tab 3: Boundaries */}
-          <Tab.Panel className="space-y-6">
+          <Tab.Panel unmount={false} className="space-y-6">
             <div>
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Linderos Exactos
@@ -1374,7 +1363,7 @@ export function PropertyForm({
           </Tab.Panel>
 
           {/* Tab 4: Environment & Services */}
-          <Tab.Panel className="space-y-6">
+          <Tab.Panel unmount={false} className="space-y-6">
             <div>
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Clasificación de Zona
@@ -1587,7 +1576,7 @@ export function PropertyForm({
           </Tab.Panel>
 
           {/* Tab 5: Technical Specifications */}
-          <Tab.Panel className="space-y-6">
+          <Tab.Panel unmount={false} className="space-y-6">
             {propertyType !== "LAND" && (
               <>
                 {/* Foundation */}
@@ -2022,7 +2011,7 @@ export function PropertyForm({
           </Tab.Panel>
 
           {/* Tab 6: Condition & Materials */}
-          <Tab.Panel className="space-y-6">
+          <Tab.Panel unmount={false} className="space-y-6">
             {propertyType !== "LAND" && (
               <>
                 <div>
