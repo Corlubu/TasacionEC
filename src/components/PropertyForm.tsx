@@ -215,7 +215,7 @@ interface PropertyFormData {
 }
 
 interface PropertyFormProps {
-  initialValues?: Partial<PropertyFormData>;
+  initialValues?: Partial<PropertyFormData> & { valuationRequest?: any };
   onSubmit: (data: PropertyFormData) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -252,17 +252,37 @@ export function PropertyForm({
       hasLiens: false,
       hasEncumbrances: false,
       hasMaintenanceLogs: false,
-      ...initialValues,
     },
   });
 
-  // Efecto para rehidratar el formulario cuando initialValues cambia (ej: los datos llegan del backend)
+  // 🚨 MAGIA APLICADA: Extraer los datos de la sub-tabla valuationRequest
   useEffect(() => {
     console.log("🚨 2. EL FORMULARIO RECIBIÓ ESTO:", initialValues);
     if (initialValues) {
+      // Extraemos los datos de la solicitud de avalúo si existen
+      const vReq = initialValues.valuationRequest || {};
+
+      // Formatear la fecha requerida (si viene con hora, cortarla a YYYY-MM-DD para el input type="date")
+      let formattedRequiredDate = vReq.requiredDate;
+      if (formattedRequiredDate && formattedRequiredDate.includes("T")) {
+        formattedRequiredDate = formattedRequiredDate.split("T")[0];
+      }
+
+      // Formatear la fecha de inspección
+      let formattedInspectionDate = initialValues.inspectionDate;
+      if (
+        typeof formattedInspectionDate === "string" &&
+        formattedInspectionDate.includes("T")
+      ) {
+        formattedInspectionDate = formattedInspectionDate.split("T")[0];
+      }
+
       reset({
+        // Datos base de la propiedad
+        ...initialValues,
         type: initialValues.type || "HOUSE",
         state: initialValues.state || "Pichincha",
+        inspectionDate: formattedInspectionDate,
         sidewalkAvailable: initialValues.sidewalkAvailable ?? false,
         hasPotableWater: initialValues.hasPotableWater ?? false,
         hasStormDrainage: initialValues.hasStormDrainage ?? false,
@@ -277,28 +297,41 @@ export function PropertyForm({
         hasLiens: initialValues.hasLiens ?? false,
         hasEncumbrances: initialValues.hasEncumbrances ?? false,
         hasMaintenanceLogs: initialValues.hasMaintenanceLogs ?? false,
-        ...initialValues,
+
+        // Datos extraídos (aplanados) de la solicitud
+        financialInstitution:
+          vReq.financialInstitution || initialValues.financialInstitution,
+        branchOffice: vReq.branchOffice || initialValues.branchOffice,
+        creditOfficer: vReq.creditOfficer || initialValues.creditOfficer,
+        clientName: vReq.clientName || initialValues.clientName,
+        clientId: vReq.clientId || initialValues.clientId,
+        clientPhone: vReq.clientPhone || initialValues.clientPhone,
+        clientEmail: vReq.clientEmail || initialValues.clientEmail,
+        legalOwnerName: vReq.legalOwnerName || initialValues.legalOwnerName,
+        legalOwnerId: vReq.legalOwnerId || initialValues.legalOwnerId,
+        purpose: vReq.purpose || initialValues.purpose,
+        purposeDescription:
+          vReq.purposeDescription || initialValues.purposeDescription,
+        valuationObject: vReq.valuationObject || initialValues.valuationObject,
+        requestedLoanAmount:
+          vReq.requestedLoanAmount || initialValues.requestedLoanAmount,
+        loanTerm: vReq.loanTerm || initialValues.loanTerm,
+        requiredDate: formattedRequiredDate || initialValues.requiredDate,
       });
     }
   }, [initialValues, reset]);
 
   const propertyType = watch("type");
 
-  // Helper function to clean NaN and empty strings from form data
   const cleanFormData = (data: PropertyFormData): PropertyFormData => {
-    // Creamos una copia flexible (any) para poder usar 'delete' sin que TypeScript se queje
     const cleaned: any = { ...data };
 
-    // 1. ELIMINACIÓN ABSOLUTA DE STRINGS VACÍOS
     Object.keys(cleaned).forEach((key) => {
       if (typeof cleaned[key] === "string" && cleaned[key].trim() === "") {
-        // Usar delete elimina completamente la llave del objeto,
-        // garantizando que tRPC no envíe un string vacío al backend
         delete cleaned[key];
       }
     });
 
-    // 2. ELIMINACIÓN ABSOLUTA DE NÚMEROS INVÁLIDOS (NaN)
     const numberFields = [
       "landArea",
       "builtArea",
