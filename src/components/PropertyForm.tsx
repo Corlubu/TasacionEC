@@ -266,6 +266,7 @@ export function PropertyForm({
 
       Object.entries(source).forEach(([key, value]) => {
         if (value === null) return;
+        // Permitimos que pasen los arrays (como las amenidades)
         if (
           typeof value === "object" &&
           !Array.isArray(value) &&
@@ -311,26 +312,27 @@ export function PropertyForm({
       inspectionDate: formattedInspectionDate,
       requiredDate: formattedRequiredDate,
 
-      sidewalkAvailable: initialValues.sidewalkAvailable ?? false,
-      hasPotableWater: initialValues.hasPotableWater ?? false,
-      hasStormDrainage: initialValues.hasStormDrainage ?? false,
-      hasSanitarySewer: initialValues.hasSanitarySewer ?? false,
-      hasElectricityAerial: initialValues.hasElectricityAerial ?? false,
-      hasElectricityUnderground:
-        initialValues.hasElectricityUnderground ?? false,
-      hasTelephone: initialValues.hasTelephone ?? false,
-      hasInternet: initialValues.hasInternet ?? false,
-      hasStreetLighting: initialValues.hasStreetLighting ?? false,
-      hasGarbageCollection: initialValues.hasGarbageCollection ?? false,
-      hasLiens: initialValues.hasLiens ?? false,
-      hasEncumbrances: initialValues.hasEncumbrances ?? false,
-      hasMaintenanceLogs: initialValues.hasMaintenanceLogs ?? false,
+      // 🚨 MAGIA EXTREMA: Casting estricto a booleano (=== true)
+      // Esto soluciona de raíz que React Hook Form ignore los checkboxes si vienen vacíos de la DB.
+      sidewalkAvailable: cleanBase.sidewalkAvailable === true,
+      hasPotableWater: cleanBase.hasPotableWater === true,
+      hasStormDrainage: cleanBase.hasStormDrainage === true,
+      hasSanitarySewer: cleanBase.hasSanitarySewer === true,
+      hasElectricityAerial: cleanBase.hasElectricityAerial === true,
+      hasElectricityUnderground: cleanBase.hasElectricityUnderground === true,
+      hasTelephone: cleanBase.hasTelephone === true,
+      hasInternet: cleanBase.hasInternet === true,
+      hasStreetLighting: cleanBase.hasStreetLighting === true,
+      hasGarbageCollection: cleanBase.hasGarbageCollection === true,
+      hasLiens: cleanBase.hasLiens === true,
+      hasEncumbrances: cleanBase.hasEncumbrances === true,
+      hasMaintenanceLogs: cleanBase.hasMaintenanceLogs === true,
+
+      // Extracción estricta del Array de Amenidades (Múltiples checkboxes)
+      amenities: Array.isArray(cleanBase.amenities) ? cleanBase.amenities : [],
     };
 
-    console.log(
-      "🎯 Datos aplanados y limpios inyectados al formulario:",
-      finalFormValues,
-    );
+    console.log("🎯 Checkboxes Inyectados:", finalFormValues);
     reset(finalFormValues);
   }, [initialValues, reset]);
 
@@ -426,8 +428,6 @@ export function PropertyForm({
         </Tab.List>
 
         <Tab.Panels className="mt-6">
-          {/* 🚨 MAGIA: unmount={false} previene la destrucción del HTML de la pestaña */}
-
           {/* Tab 1: Basic Information */}
           <Tab.Panel unmount={false} className="space-y-6">
             <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
