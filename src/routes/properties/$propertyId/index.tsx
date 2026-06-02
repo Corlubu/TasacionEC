@@ -13,7 +13,7 @@ import {
   X,
   Download,
   CheckCircle,
-  Eye, // 👈 Ícono para el botón de Ver PDF
+  Eye, // 👈 Ícono para el botón de solo lectura
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -32,8 +32,8 @@ function PropertyDetailPage() {
   const [activeTab, setActiveTab] = useState<"details" | "photos" | "report">(
     "details",
   );
-  const [isEditing, setIsEditing] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // 👈 Nuevo estado para controlar el botón de descarga
+  const [showForm, setShowForm] = useState(false); // 👈 Reemplazamos isEditing por showForm (sirve para editar y para ver)
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -66,7 +66,7 @@ function PropertyDetailPage() {
       onSuccess: () => {
         toast.success("Propiedad actualizada exitosamente");
         propertyQuery.refetch();
-        setIsEditing(false);
+        setShowForm(false);
       },
       onError: (error: any) => {
         toast.error(error.message || "Error al actualizar la propiedad");
@@ -80,17 +80,11 @@ function PropertyDetailPage() {
         const toastId = toast.loading("Descargando archivo a su equipo...");
 
         try {
-          // Descargamos el PDF a la memoria de la PC
           const response = await fetch(data.pdfUrl);
           const blob = await response.blob();
-
-          // Creamos una URL local en la computadora del usuario
           const localUrl = window.URL.createObjectURL(blob);
-
           const link = document.createElement("a");
           link.href = localUrl;
-
-          // Damos un formato bonito al nombre del archivo
           const propertyName =
             property?.address?.substring(0, 15).replace(/\s+/g, "_") ||
             "Propiedad";
@@ -99,13 +93,10 @@ function PropertyDetailPage() {
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-
-          // Limpiamos la memoria
           window.URL.revokeObjectURL(localUrl);
 
           toast.success("¡Descarga completada con éxito!", { id: toastId });
         } catch (error) {
-          // Plan B: Si hay bloqueo de CORS por parte de S3, lo abre en pestaña nueva
           window.open(data.pdfUrl, "_blank");
           toast.success("¡PDF generado! (Se abrió en una pestaña nueva)", {
             id: toastId,
@@ -155,8 +146,6 @@ function PropertyDetailPage() {
 
   const handleDownloadPDF = () => {
     if (!report) return;
-
-    // Si la URL del PDF ya existe en el reporte, forzamos la descarga manual
     if (report.pdfUrl) {
       const triggerDownload = async () => {
         setIsDownloading(true);
@@ -189,8 +178,6 @@ function PropertyDetailPage() {
       triggerDownload();
       return;
     }
-
-    // Si no existe el PDF, le decimos al backend que lo genere
     toast.loading("Generando PDF profesional...", { duration: 2000 });
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
@@ -283,17 +270,31 @@ function PropertyDetailPage() {
               )}
             </div>
             <div className="flex items-center space-x-3">
-              {property.status === "DRAFT" && !isEditing && (
+              {/* 🚨 MAGIA APLICADA: Botón Dinámico (Editar si es Borrador, Ver si es Finalizado) */}
+              {!showForm && (
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center space-x-2 rounded-lg border-2 border-blue-600 bg-white px-5 py-3 font-semibold text-blue-600 transition-all hover:bg-blue-50"
+                  onClick={() => setShowForm(true)}
+                  className={`flex items-center space-x-2 rounded-lg border-2 px-5 py-3 font-semibold transition-all ${
+                    property.status === "DRAFT"
+                      ? "border-blue-600 bg-white text-blue-600 hover:bg-blue-50"
+                      : "border-gray-600 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
-                  <Edit className="h-5 w-5" />
-                  <span>Editar</span>
+                  {property.status === "DRAFT" ? (
+                    <>
+                      <Edit className="h-5 w-5" />
+                      <span>Editar Propiedad</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-5 w-5" />
+                      <span>Ver Datos</span>
+                    </>
+                  )}
                 </button>
               )}
 
-              {!report && property.status === "DRAFT" && !isEditing && (
+              {!report && property.status === "DRAFT" && !showForm && (
                 <button
                   onClick={handleGenerateReport}
                   disabled={generateReportMutation.isPending}
@@ -313,7 +314,7 @@ function PropertyDetailPage() {
                 </button>
               )}
 
-              {property.status === "DRAFT" && report && !isEditing && (
+              {property.status === "DRAFT" && report && !showForm && (
                 <button
                   onClick={handleCompleteProperty}
                   disabled={updatePropertyMutation.isPending}
@@ -372,26 +373,30 @@ function PropertyDetailPage() {
         </div>
 
         {/* Content */}
-        {isEditing ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8">
+        {showForm ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900">
-                Editar Propiedad
+                {property.status === "COMPLETED"
+                  ? "Datos de la Propiedad (Solo Lectura)"
+                  : "Editar Propiedad"}
               </h2>
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={() => setShowForm(false)}
                 className="text-gray-600 hover:text-gray-900"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
+            {/* 🚨 MAGIA APLICADA: Enviamos la bandera de Solo Lectura al formulario */}
             <PropertyForm
               initialValues={initialFormValues}
               onSubmit={handleUpdateProperty}
-              onCancel={() => setIsEditing(false)}
+              onCancel={() => setShowForm(false)}
               isSubmitting={updatePropertyMutation.isPending}
               submitLabel="Guardar Cambios"
+              readOnly={property.status === "COMPLETED"}
             />
           </div>
         ) : activeTab === "details" ? (
@@ -412,7 +417,7 @@ function PropertyDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">
                   Información Básica
                 </h2>
@@ -425,8 +430,13 @@ function PropertyDetailPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Estado</p>
-                    <p className="font-semibold text-gray-900">
-                      {property.status}
+                    {/* 🚨 MAGIA APLICADA: Traducción Visual de DRAFT y COMPLETED */}
+                    <p
+                      className={`font-semibold ${property.status === "COMPLETED" ? "text-green-600" : "text-amber-600"}`}
+                    >
+                      {property.status === "COMPLETED"
+                        ? "Finalizado"
+                        : "Borrador"}
                     </p>
                   </div>
                   <div>
@@ -478,7 +488,7 @@ function PropertyDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">
                   Ubicación
                 </h2>
@@ -503,7 +513,7 @@ function PropertyDetailPage() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="mb-4 text-lg font-bold text-gray-900">
                   Estadísticas
                 </h3>
@@ -549,10 +559,7 @@ function PropertyDetailPage() {
                     {new Date(report.generatedAt!).toLocaleDateString("es-EC")}
                   </p>
                 </div>
-
-                {/* 🚨 MAGIA APLICADA: Área de Botones Dinámica */}
                 <div className="flex items-center space-x-4">
-                  {/* Botón 1: VER EN PESTAÑA NUEVA (Solo aparece si el PDF ya existe) */}
                   {report.pdfUrl && (
                     <button
                       onClick={() => window.open(report.pdfUrl, "_blank")}
@@ -563,7 +570,6 @@ function PropertyDetailPage() {
                     </button>
                   )}
 
-                  {/* Botón 2: DESCARGAR O GENERAR */}
                   <button
                     onClick={handleDownloadPDF}
                     disabled={generatePDFMutation.isPending || isDownloading}
@@ -588,7 +594,6 @@ function PropertyDetailPage() {
                 </div>
               </div>
 
-              {/* 🚨 MAGIA APLICADA: Previsualizador Integrado de PDF */}
               {report.pdfUrl && (
                 <div className="mt-8 h-[700px] w-full overflow-hidden rounded-xl border border-white/20 bg-white shadow-2xl">
                   <iframe
