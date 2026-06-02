@@ -17,7 +17,7 @@ import {
   Save,
   X,
   Download,
-  CheckCircle, // 👈 Ícono nuevo importado para el botón de completar
+  CheckCircle,
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -77,23 +77,44 @@ function PropertyDetailPage() {
     }),
   );
 
+  // 🚨 MAGIA APLICADA: Fuerza de descarga nativa en el dispositivo
   const generatePDFMutation = useMutation(
     trpc.generatePDF.mutationOptions({
-      onSuccess: (data) => {
-        toast.success("¡PDF generado exitosamente!");
+      onSuccess: async (data) => {
+        const toastId = toast.loading("Descargando archivo a su equipo...");
 
-        // EL TRUCO ANTI-BLOQUEO: Creamos un enlace invisible y lo clickeamos
-        const link = document.createElement("a");
-        link.href = data.pdfUrl;
-        link.target = "_blank"; // Para que abra en una pestaña nueva
-        link.rel = "noopener noreferrer"; // Por seguridad
+        try {
+          // Descargamos el PDF a la memoria de la PC
+          const response = await fetch(data.pdfUrl);
+          const blob = await response.blob();
 
-        // Opcional: Si prefieres que fuerce la descarga directa a la PC en lugar de abrirlo:
-        // link.download = `Avaluo_${property?.id}.pdf`;
+          // Creamos una URL local en la computadora del usuario
+          const localUrl = window.URL.createObjectURL(blob);
 
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+          const link = document.createElement("a");
+          link.href = localUrl;
+
+          // Damos un formato bonito al nombre del archivo
+          const propertyName =
+            property?.address?.substring(0, 15).replace(/\s+/g, "_") ||
+            "Propiedad";
+          link.download = `Avaluo_${propertyName}_${new Date().getTime()}.pdf`;
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Limpiamos la memoria
+          window.URL.revokeObjectURL(localUrl);
+
+          toast.success("¡Descarga completada con éxito!", { id: toastId });
+        } catch (error) {
+          // Plan B: Si hay bloqueo de CORS por parte de S3, lo abre en pestaña nueva
+          window.open(data.pdfUrl, "_blank");
+          toast.success("¡PDF generado! (Se abrió en una pestaña nueva)", {
+            id: toastId,
+          });
+        }
 
         propertyQuery.refetch();
       },
@@ -121,7 +142,6 @@ function PropertyDetailPage() {
     });
   };
 
-  // 👈 NUEVA FUNCIÓN PARA FINALIZAR EL AVALÚO
   const handleCompleteProperty = () => {
     if (!property) return;
     if (
@@ -139,15 +159,45 @@ function PropertyDetailPage() {
 
   const handleDownloadPDF = () => {
     if (!report) return;
+    // Si la URL del PDF ya existe en el reporte (ya se generó antes), la descargamos directamente
+    if (report.pdfUrl) {
+      const triggerDownload = async () => {
+        const toastId = toast.loading("Descargando archivo a su equipo...");
+        try {
+          const response = await fetch(report.pdfUrl!);
+          const blob = await response.blob();
+          const localUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = localUrl;
+          const propertyName =
+            property?.address?.substring(0, 15).replace(/\s+/g, "_") ||
+            "Propiedad";
+          link.download = `Avaluo_${propertyName}_${new Date().getTime()}.pdf`;
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(localUrl);
+          toast.success("¡Descarga completada con éxito!", { id: toastId });
+        } catch (error) {
+          window.open(report.pdfUrl!, "_blank");
+          toast.success("¡PDF generado! (Se abrió en una pestaña nueva)", {
+            id: toastId,
+          });
+        }
+      };
+      triggerDownload();
+      return;
+    }
+
+    // Si no se ha generado antes, lo generamos en el backend
     toast.loading("Generando PDF profesional...", { duration: 2000 });
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
 
-  // MAGIA ARQUITECTÓNICA ACTUALIZADA
   const initialFormValues = useMemo(() => {
     if (!property) return undefined;
 
-    // 1. Extraemos los campos de la tabla Property principal
     const baseValues = Object.fromEntries(
       Object.entries(property).map(([key, value]) => {
         if (value === null) return [key, undefined];
@@ -160,7 +210,6 @@ function PropertyDetailPage() {
       }),
     );
 
-    // 2. Extraemos y desempaquetamos los campos de la tabla ValuationRequest (Solicitud)
     const requestValues = property.valuationRequest
       ? Object.fromEntries(
           Object.entries(property.valuationRequest).map(([key, value]) => {
@@ -177,14 +226,11 @@ function PropertyDetailPage() {
         )
       : {};
 
-    // 3. Fusionamos ambos en un solo objeto plano para que el Formulario lo entienda
     return {
       ...baseValues,
       ...requestValues,
     };
   }, [property]);
-
-  console.log("🚨 1. EL PADRE ENVIARÁ ESTO AL FORMULARIO:", initialFormValues);
 
   if (propertyQuery.isLoading) {
     return (
@@ -270,7 +316,6 @@ function PropertyDetailPage() {
                 </button>
               )}
 
-              {/* 👈 NUEVO: Botón para Finalizar el avalúo (Aparece si ya hay reporte y sigue en DRAFT) */}
               {property.status === "DRAFT" && report && !isEditing && (
                 <button
                   onClick={handleCompleteProperty}
@@ -344,7 +389,6 @@ function PropertyDetailPage() {
               </button>
             </div>
 
-            {/* Aquí le pasamos el objeto 100% completo y limpio */}
             <PropertyForm
               initialValues={initialFormValues}
               onSubmit={handleUpdateProperty}

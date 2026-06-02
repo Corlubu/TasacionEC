@@ -87,6 +87,61 @@ function generateReportHTML(report: any, property: any): string {
     timeZone: "America/Guayaquil",
   });
 
+  // 🚨 MAGIA APLICADA: Diccionarios de traducción
+  const translateType: Record<string, string> = {
+    HOUSE: "Casa",
+    APARTMENT: "Apartamento",
+    COMMERCIAL: "Local Comercial",
+    LAND: "Terreno",
+    INDUSTRIAL: "Industrial",
+  };
+  const translateRegime: Record<string, string> = {
+    PRIVATE: "Privada",
+    PUBLIC: "Pública",
+    COMMUNAL: "Comunal",
+    HORIZONTAL_PROPERTY: "Propiedad Horizontal",
+  };
+  const translateLevel: Record<string, string> = {
+    HIGH: "Alto",
+    MEDIUM_HIGH: "Medio Alto",
+    MEDIUM: "Medio",
+    MEDIUM_LOW: "Medio Bajo",
+    LOW: "Bajo",
+  };
+  const translateObject: Record<string, string> = {
+    MARKET_VALUE: "Valor Justo de Mercado",
+    LIQUIDATION_VALUE: "Valor de Liquidación",
+    RESCUE_VALUE: "Valor de Rescate",
+    SCRAP_VALUE: "Valor de Desecho",
+  };
+  const translateStatus: Record<string, string> = {
+    DRAFT: "Borrador",
+    COMPLETED: "Finalizado",
+  };
+  const translateDepMethod: Record<string, string> = {
+    STRAIGHT_LINE: "Línea Recta",
+    ROSS_HEIDECK: "Ross-Heideck",
+    KUFNER: "Kufner",
+  };
+
+  const tipoPropiedad = translateType[property.type] || property.type || "N/A";
+  const regimen =
+    translateRegime[property.propertyRegime] ||
+    property.propertyRegime ||
+    "N/A";
+  const nivelSocio =
+    translateLevel[property.socioeconomicLevel] ||
+    property.socioeconomicLevel ||
+    "N/A";
+  const objetoAvaluo =
+    translateObject[report.valuationObject] || report.valuationObject || "N/A";
+  const estadoReporte =
+    translateStatus[report.status] || report.status || "N/A";
+  const metodoDep =
+    translateDepMethod[report.depreciationMethod] ||
+    report.depreciationMethod ||
+    "N/A";
+
   return `
 <!DOCTYPE html>
 <html>
@@ -463,7 +518,7 @@ function generateReportHTML(report: any, property: any): string {
       <tr><th>Campo</th><th>Valor</th></tr>
       <tr><td><strong>Dirección</strong></td><td>${property.address}</td></tr>
       <tr><td><strong>Ciudad</strong></td><td>${property.city}, ${property.state}</td></tr>
-      <tr><td><strong>Tipo de Propiedad</strong></td><td>${property.type}</td></tr>
+      <tr><td><strong>Tipo de Propiedad</strong></td><td>${tipoPropiedad}</td></tr>
       <tr><td><strong>Coordenadas GPS</strong></td><td>Lat: ${property.latitude}, Lng: ${property.longitude}</td></tr>
       <tr><td><strong>Área del Terreno</strong></td><td>${property.landArea || "N/A"} m²</td></tr>
       <tr><td><strong>Área Construida</strong></td><td>${property.builtArea || "N/A"} m²</td></tr>
@@ -480,10 +535,10 @@ function generateReportHTML(report: any, property: any): string {
     <h2>1.1 INFORMACIÓN DE CUMPLIMIENTO SBS</h2>
     <table>
       <tr><th>Campo</th><th>Valor</th></tr>
-      <tr><td><strong>Régimen de Propiedad</strong></td><td>${property.propertyRegime}</td></tr>
+      <tr><td><strong>Régimen de Propiedad</strong></td><td>${regimen}</td></tr>
       ${property.inspectionDate ? `<tr><td><strong>Fecha de Inspección Física</strong></td><td>${new Date(property.inspectionDate).toLocaleDateString("es-EC")}</td></tr>` : ""}
       ${property.personPresentAtInspection ? `<tr><td><strong>Persona Presente en Inspección</strong></td><td>${property.personPresentAtInspection}</td></tr>` : ""}
-      ${property.socioeconomicLevel ? `<tr><td><strong>Nivel Socioeconómico del Sector</strong></td><td>${property.socioeconomicLevel}</td></tr>` : ""}
+      ${property.socioeconomicLevel ? `<tr><td><strong>Nivel Socioeconómico del Sector</strong></td><td>${nivelSocio}</td></tr>` : ""}
       ${property.saturationIndex ? `<tr><td><strong>Índice de Saturación</strong></td><td>${property.saturationIndex}%</td></tr>` : ""}
       ${property.cos ? `<tr><td><strong>COS (Coef. Ocupación Suelo)</strong></td><td>${property.cos}</td></tr>` : ""}
       ${property.cus ? `<tr><td><strong>CUS (Coef. Utilización Suelo)</strong></td><td>${property.cus}</td></tr>` : ""}
@@ -517,12 +572,12 @@ function generateReportHTML(report: any, property: any): string {
   }
 
   <div class="section">
-    <h2>2. VALORACIÓN${report.valuationObject ? ` - ${report.valuationObject}` : ""}</h2>
+    <h2>2. VALORACIÓN${report.valuationObject ? ` - ${objetoAvaluo}` : ""}</h2>
     ${
       report.valuationObject
         ? `
     <div class="highlight-box mb-4">
-      <p><strong>Objeto del Avalúo:</strong> ${report.valuationObject === "MARKET_VALUE" ? "Valor Justo de Mercado" : report.valuationObject === "LIQUIDATION_VALUE" ? "Valor de Liquidación" : report.valuationObject === "RESCUE_VALUE" ? "Valor de Rescate" : "Valor de Desecho"}</p>
+      <p><strong>Objeto del Avalúo:</strong> ${objetoAvaluo}</p>
     </div>
     `
         : ""
@@ -719,7 +774,7 @@ function generateReportHTML(report: any, property: any): string {
       <tr><th>Concepto</th><th>Valor</th></tr>
       <tr><td>Valor del Terreno</td><td>$${Math.round(report.landValue || 0).toLocaleString("es-EC")}</td></tr>
       <tr><td>Costo de Construcción</td><td>$${Math.round(report.constructionCost || 0).toLocaleString("es-EC")}</td></tr>
-      <tr><td>Depreciación (${report.depreciationMethod})</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.depreciationAmount || 0).toLocaleString("es-EC")}</td></tr>
+      <tr><td>Depreciación (${metodoDep})</td><td style="color: #dc2626; font-weight: 600;">-$${Math.round(report.depreciationAmount || 0).toLocaleString("es-EC")}</td></tr>
       ${report.additionalWorksCost && report.additionalWorksCost > 0 ? `<tr><td>Obras Adicionales</td><td>$${Math.round(report.additionalWorksCost).toLocaleString("es-EC")}</td></tr>` : ""}
       <tr style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); font-weight: 700;">
         <td>TOTAL VALOR DE COSTO</td>
@@ -730,7 +785,7 @@ function generateReportHTML(report: any, property: any): string {
     <h3>Análisis de Depreciación</h3>
     <table>
       <tr><th>Parámetro</th><th>Valor</th></tr>
-      <tr><td>Método de Depreciación</td><td><strong>${report.depreciationMethod}</strong></td></tr>
+      <tr><td>Método de Depreciación</td><td><strong>${metodoDep}</strong></td></tr>
       <tr><td>Edad Cronológica</td><td>${report.chronologicalAge || 0} años</td></tr>
       <tr><td>Vida Útil Total</td><td>${report.totalUsefulLife || 0} años</td></tr>
       <tr><td>Vida Útil Remanente</td><td>${report.remainingUsefulLife ? report.remainingUsefulLife.toFixed(2) : "0"} años</td></tr>
@@ -768,8 +823,8 @@ function generateReportHTML(report: any, property: any): string {
     <div class="metadata">
       <div><strong>Reporte ID:</strong> ${report.id}</div>
       <div><strong>Propiedad ID:</strong> ${property.id}</div>
-      <div><strong>Método de Cálculo:</strong> ${report.depreciationMethod}</div>
-      <div><strong>Estado:</strong> ${report.status}</div>
+      <div><strong>Método de Cálculo:</strong> ${metodoDep}</div>
+      <div><strong>Estado:</strong> ${estadoReporte}</div>
     </div>
     <p style="margin-top: 20px; font-weight: 600;">Este reporte fue generado automáticamente por TasaciónEC</p>
     <p style="font-size: 8pt;">© ${new Date().getFullYear()} TasaciónEC - Todos los derechos reservados</p>
