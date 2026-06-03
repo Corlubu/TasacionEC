@@ -10,6 +10,7 @@ import {
   Loader2,
   ArrowRight,
   UserCircle,
+  CheckCircle,
 } from "lucide-react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
