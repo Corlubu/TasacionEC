@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DashboardLayout } from "~/components/DashboardLayout";
 import { useAuthStore } from "~/stores/auth-store";
 import { useTRPC } from "~/trpc/react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Shield,
@@ -24,6 +24,7 @@ function UsersAdminPage() {
   const { token, isAuthenticated, user } = useAuthStore();
   const trpc = useTRPC();
 
+  const queryClient = useQueryClient();
   // Estados para el Modal de Crear Usuario
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -50,7 +51,7 @@ function UsersAdminPage() {
     trpc.updateUserRole.mutationOptions({
       onSuccess: () => {
         toast.success("Rol de usuario actualizado");
-        usersQuery.refetch();
+        queryClient.invalidateQueries();
       },
       onError: (error: any) => {
         toast.error(error.message || "Error al actualizar el rol");
@@ -64,7 +65,7 @@ function UsersAdminPage() {
         toast.success("¡Usuario creado exitosamente!");
         setIsCreateModalOpen(false);
         setFormData({ name: "", email: "", password: "", role: "APPRAISER" }); // Limpiar formulario
-        usersQuery.refetch();
+        queryClient.invalidateQueries();
       },
       onError: (error: any) => {
         toast.error(error.message || "Error al crear el usuario");
