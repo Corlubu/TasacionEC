@@ -854,7 +854,7 @@ export const getReports = baseProcedure
         .enum([
           "GENERATING",
           "DRAFT",
-          "PENDING_APPROVAL",
+          "PENDING", // 👈 Corregido a "PENDING" para coincidir con tu frontend
           "APPROVED",
           "REJECTED",
         ])
@@ -892,4 +892,42 @@ export const getReports = baseProcedure
     ]);
 
     return { reports, total };
+  });
+
+// 🚨 NUEVA FUNCIÓN PARA EL FLUJO DE APROBACIÓN
+export const updateReportStatus = baseProcedure
+  .input(
+    z.object({
+      token: z.string(),
+      reportId: z.number(),
+      status: z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]),
+      rejectionReason: z.string().optional().nullable(),
+    }),
+  )
+  .mutation(async ({ input }) => {
+    // 1. Validamos quién es el usuario
+    const userId = await getUserIdFromToken(input.token);
+
+    // 2. Actualizamos el estado del reporte y guardamos el comentario si fue rechazado
+    const updatedReport = await db.valuationReport.update({
+      where: { id: input.reportId },
+      data: {
+        status: input.status,
+        rejectionReason: input.rejectionReason,
+      },
+    });
+
+    // 3. Dejamos huella en la bitácora de auditoría (Audit Log)
+    await db.auditLog.create({
+      data: {
+        userId,
+        action: `REPORT_${input.status}`,
+        entity: "ValuationReport",
+        entityId: input.reportId,
+        reportId: input.reportId,
+        metadata: JSON.stringify({ reason: input.rejectionReason }),
+      },
+    });
+
+    return updatedReport;
   });

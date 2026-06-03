@@ -576,7 +576,7 @@ model ValuationReport {
   approvedAt   DateTime?
   approvedBy   Int?
   rejectedAt   DateTime?
-  rejectionReason String?
+  rejectionReason   String?  @db.Text
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt

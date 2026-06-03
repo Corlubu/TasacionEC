@@ -14,6 +14,11 @@ import {
   Download,
   CheckCircle,
   Eye,
+  Send, // Ícono para Enviar a Revisión
+  CheckCircle2, // Ícono para Aprobar
+  XCircle, // Ícono para Rechazar
+  MessageSquare, // Ícono para el Modal de comentarios
+  AlertTriangle, // Ícono para alerta de rechazo
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -34,6 +39,10 @@ function PropertyDetailPage() {
   );
   const [showForm, setShowForm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Estados para la ventana de rechazo
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectComment, setRejectComment] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -70,6 +79,21 @@ function PropertyDetailPage() {
       },
       onError: (error: any) => {
         toast.error(error.message || "Error al actualizar la propiedad");
+      },
+    }),
+  );
+
+  // MUTACIÓN: Actualizar estado del reporte (Flujo de Aprobación)
+  const updateReportStatusMutation = useMutation(
+    trpc.updateReportStatus.mutationOptions({
+      onSuccess: () => {
+        toast.success("Estado del reporte actualizado");
+        propertyQuery.refetch();
+        setShowRejectModal(false);
+        setRejectComment("");
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Error al actualizar el reporte");
       },
     }),
   );
@@ -184,6 +208,52 @@ function PropertyDetailPage() {
     generatePDFMutation.mutate({ token: token!, reportId: report.id });
   };
 
+  // FUNCIONES DEL FLUJO DE APROBACIÓN
+  const handleSendToReview = () => {
+    if (!report) return;
+    if (
+      window.confirm(
+        "¿Estás seguro de enviar este reporte a revisión? El supervisor será notificado.",
+      )
+    ) {
+      updateReportStatusMutation.mutate({
+        token: token!,
+        reportId: report.id,
+        status: "PENDING",
+        rejectionReason: null,
+      });
+    }
+  };
+
+  const handleApproveReport = () => {
+    if (!report) return;
+    if (
+      window.confirm(
+        "¿Aprobar este reporte definitivamente? Quedará sellado y listo para el cliente.",
+      )
+    ) {
+      updateReportStatusMutation.mutate({
+        token: token!,
+        reportId: report.id,
+        status: "APPROVED",
+      });
+    }
+  };
+
+  const handleRejectReport = () => {
+    if (!report) return;
+    if (!rejectComment.trim()) {
+      toast.error("Por favor, ingresa una razón para el rechazo.");
+      return;
+    }
+    updateReportStatusMutation.mutate({
+      token: token!,
+      reportId: report.id,
+      status: "REJECTED",
+      rejectionReason: rejectComment,
+    });
+  };
+
   const initialFormValues = useMemo(() => {
     if (!property) return undefined;
 
@@ -275,7 +345,6 @@ function PropertyDetailPage() {
               {!showForm && (
                 <button
                   onClick={() => {
-                    // 🚨 MAGIA: Aseguramos que siempre abra en Detalles de Propiedad
                     setActiveTab("details");
                     setShowForm(true);
                   }}
@@ -323,28 +392,27 @@ function PropertyDetailPage() {
                 <button
                   onClick={handleCompleteProperty}
                   disabled={updatePropertyMutation.isPending}
-                  className="flex items-center space-x-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center space-x-2 rounded-lg bg-gray-800 px-6 py-3 font-semibold text-white transition-all hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updatePropertyMutation.isPending ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <CheckCircle className="h-5 w-5" />
                   )}
-                  <span>Finalizar Avalúo</span>
+                  <span>Congelar Datos de Propiedad</span>
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* 🚨 MAGIA: Reparación de pestañas principales */}
         {/* Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="flex space-x-8">
             <button
               onClick={() => {
                 setActiveTab("details");
-                setShowForm(false); // Apagamos el formulario
+                setShowForm(false);
               }}
               className={`border-b-2 px-1 pb-4 font-semibold transition-colors ${
                 activeTab === "details"
@@ -357,7 +425,7 @@ function PropertyDetailPage() {
             <button
               onClick={() => {
                 setActiveTab("photos");
-                setShowForm(false); // Apagamos el formulario
+                setShowForm(false);
               }}
               className={`flex items-center space-x-2 border-b-2 px-1 pb-4 font-semibold transition-colors ${
                 activeTab === "photos"
@@ -372,7 +440,7 @@ function PropertyDetailPage() {
               <button
                 onClick={() => {
                   setActiveTab("report");
-                  setShowForm(false); // Apagamos el formulario
+                  setShowForm(false);
                 }}
                 className={`flex items-center space-x-2 border-b-2 px-1 pb-4 font-semibold transition-colors ${
                   activeTab === "report"
@@ -382,6 +450,27 @@ function PropertyDetailPage() {
               >
                 <FileText className="h-4 w-4" />
                 <span>Reporte de Valoración</span>
+
+                {report.status === "DRAFT" && (
+                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                    Borrador
+                  </span>
+                )}
+                {report.status === "PENDING" && (
+                  <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                    En Revisión
+                  </span>
+                )}
+                {report.status === "APPROVED" && (
+                  <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                    Aprobado
+                  </span>
+                )}
+                {report.status === "REJECTED" && (
+                  <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                    Rechazado
+                  </span>
+                )}
               </button>
             )}
           </nav>
@@ -561,11 +650,104 @@ function PropertyDetailPage() {
           />
         ) : activeTab === "report" && report ? (
           <div className="space-y-6">
+            {/* Flujo de Aprobación */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                {/* Información del Estado Actual */}
+                <div className="mb-4 md:mb-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Flujo de Aprobación
+                  </h3>
+                  <div className="mt-2 flex items-center space-x-2">
+                    <span className="text-gray-600">Estado actual:</span>
+                    {report.status === "DRAFT" && (
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-800">
+                        <Edit className="mr-1.5 h-4 w-4" /> Borrador
+                      </span>
+                    )}
+                    {report.status === "PENDING" && (
+                      <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 font-medium text-yellow-800">
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> En
+                        Revisión por Supervisor
+                      </span>
+                    )}
+                    {report.status === "APPROVED" && (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 font-medium text-green-800">
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" /> Aprobado
+                        Oficialmente
+                      </span>
+                    )}
+                    {report.status === "REJECTED" && (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 font-medium text-red-800">
+                        <XCircle className="mr-1.5 h-4 w-4" /> Rechazado /
+                        Requiere Cambios
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Botones de Acción según el Estado */}
+                <div className="flex items-center space-x-3">
+                  {/* Para el Perito: Enviar a Revisión */}
+                  {(report.status === "DRAFT" ||
+                    report.status === "REJECTED") && (
+                    <button
+                      onClick={handleSendToReview}
+                      disabled={updateReportStatusMutation.isPending}
+                      className="flex items-center space-x-2 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>Enviar a Revisión</span>
+                    </button>
+                  )}
+
+                  {/* Para el Supervisor: Aprobar o Rechazar */}
+                  {report.status === "PENDING" && (
+                    <>
+                      <button
+                        onClick={handleApproveReport}
+                        disabled={updateReportStatusMutation.isPending}
+                        className="flex items-center space-x-2 rounded-lg bg-green-600 px-5 py-2.5 font-semibold text-white transition-all hover:bg-green-700 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Aprobar Reporte</span>
+                      </button>
+                      <button
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={updateReportStatusMutation.isPending}
+                        className="flex items-center space-x-2 rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <span>Rechazar</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Caja de Comentarios si está Rechazado */}
+              {report.status === "REJECTED" && report.rejectionReason && (
+                <div className="mt-6 rounded-lg border-l-4 border-red-500 bg-red-50 p-4">
+                  <div className="flex items-start">
+                    <AlertTriangle className="mr-3 h-5 w-5 text-red-600" />
+                    <div>
+                      <h4 className="font-bold text-red-800">
+                        Comentarios del Supervisor para corrección:
+                      </h4>
+                      <p className="mt-1 text-red-700">
+                        {report.rejectionReason}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="mb-2 text-2xl font-bold">
-                    Reporte de Valoración
+                    Documento del Reporte
                   </h2>
                   <p className="text-blue-100">
                     Generado el{" "}
@@ -621,6 +803,59 @@ function PropertyDetailPage() {
           </div>
         ) : null}
       </div>
+
+      {/* Modal para Rechazar */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md scale-100 transform rounded-2xl bg-white p-6 opacity-100 shadow-2xl transition-all">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">
+                Motivo del Rechazo
+              </h3>
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-gray-600">
+              Por favor, detalla claramente qué información debe corregir el
+              perito antes de volver a enviar este reporte a revisión.
+            </p>
+
+            <textarea
+              className="w-full rounded-xl border border-gray-300 p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200"
+              rows={4}
+              placeholder="Ej. Falta adjuntar la foto del medidor eléctrico..."
+              value={rejectComment}
+              onChange={(e) => setRejectComment(e.target.value)}
+            />
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="rounded-lg px-5 py-2.5 font-medium text-gray-600 hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRejectReport}
+                disabled={updateReportStatusMutation.isPending}
+                className="flex items-center space-x-2 rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {updateReportStatusMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquare className="h-4 w-4" />
+                )}
+                <span>Enviar Comentarios</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
