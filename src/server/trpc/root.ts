@@ -50,6 +50,7 @@ export const appRouter = createTRPCRouter({
   getReport: reports.getReport,
   getReports: reports.getReports,
   updateReportStatus: reports.updateReportStatus,
+  getPendingReviews: reports.getPendingReviews,
 
   // PDF Generation
   generatePDF: pdf.generatePDF,

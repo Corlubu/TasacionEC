@@ -931,3 +931,42 @@ export const updateReportStatus = baseProcedure
 
     return updatedReport;
   });
+// 4. Bandeja de entrada para Supervisores y Administradores
+export const getPendingReviews = baseProcedure
+  .input(z.object({ token: z.string() }))
+  .query(async ({ input }) => {
+    // 1. Verificamos quién hace la petición
+    const userId = await getUserIdFromToken(input.token);
+    const currentUser = await db.user.findUnique({ where: { id: userId } });
+
+    // 2. Bloqueamos a los Peritos normales
+    if (currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPERVISOR") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Acceso denegado. Solo Supervisores o Administradores.",
+      });
+    }
+
+    // 3. Traemos TODOS los reportes pendientes de la empresa
+    return db.valuationReport.findMany({
+      where: { status: "PENDING" },
+      include: {
+        property: {
+          select: {
+            id: true,
+            address: true,
+            city: true,
+            type: true,
+            status: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: "asc" }, // Los más antiguos primero (First In, First Out)
+    });
+  });

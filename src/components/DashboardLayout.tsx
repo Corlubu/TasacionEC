@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Upload,
-  Users, // 👈 Importamos el nuevo ícono para el panel de usuarios
+  Users,
+  Inbox, // 👈 Nuevo ícono para la bandeja
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,7 +27,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, clearAuth } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // 1. Definimos la navegación base (lo que todos ven)
+  // 1. Navegación base (para todos)
   const baseNavigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Propiedades", href: "/properties", icon: Home },
@@ -38,14 +39,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Comparables", href: "/comparables", icon: BarChart3 },
   ];
 
-  // 2. Inyectamos la pestaña de Administración SOLO si el usuario es ADMIN
-  const navigation =
-    user?.role === "ADMIN"
-      ? [
-          ...baseNavigation,
-          { name: "Gestión de Equipo", href: "/admin/users", icon: Users },
-        ]
-      : baseNavigation;
+  // 2. Construcción dinámica del menú según el rol
+  let navigation = [...baseNavigation];
+
+  // Si es Supervisor o Admin, ven la bandeja de revisión
+  if (user?.role === "SUPERVISOR" || user?.role === "ADMIN") {
+    navigation.push({
+      name: "Bandeja de Revisión",
+      href: "/reviews",
+      icon: Inbox,
+    });
+  }
+
+  // Si es Admin, ve también la gestión de equipo
+  if (user?.role === "ADMIN") {
+    navigation.push({
+      name: "Gestión de Equipo",
+      href: "/admin/users",
+      icon: Users,
+    });
+  }
 
   const handleLogout = () => {
     clearAuth();
@@ -116,7 +129,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 {user?.name}
               </p>
               <p className="truncate text-xs text-gray-500">{user?.email}</p>
-              {/* Etiqueta visual para que el usuario recuerde su rol */}
               <p className="mt-0.5 text-xs font-semibold text-blue-600">
                 {user?.role}
               </p>
@@ -155,7 +167,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        {/* Page content */}
         <main className="min-h-screen">{children}</main>
       </div>
     </div>
