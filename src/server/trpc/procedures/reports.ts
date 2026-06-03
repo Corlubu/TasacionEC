@@ -854,7 +854,7 @@ export const getReports = baseProcedure
         .enum([
           "GENERATING",
           "DRAFT",
-          "PENDING", // 👈 Corregido a "PENDING" para coincidir con tu frontend
+          "PENDING_APPROVAL", //
           "APPROVED",
           "REJECTED",
         ])
@@ -900,7 +900,7 @@ export const updateReportStatus = baseProcedure
     z.object({
       token: z.string(),
       reportId: z.number(),
-      status: z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]),
+      status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED"]),
       rejectionReason: z.string().optional().nullable(),
     }),
   )
@@ -949,7 +949,7 @@ export const getPendingReviews = baseProcedure
 
     // 3. Traemos TODOS los reportes pendientes de la empresa
     return db.valuationReport.findMany({
-      where: { status: "PENDING" },
+      where: { status: "PENDING_APPROVAL" },
       include: {
         property: {
           select: {

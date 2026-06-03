@@ -219,7 +219,7 @@ function PropertyDetailPage() {
       updateReportStatusMutation.mutate({
         token: token!,
         reportId: report.id,
-        status: "PENDING",
+        status: "PENDING_APPROVAL",
         rejectionReason: null,
       });
     }
@@ -456,7 +456,7 @@ function PropertyDetailPage() {
                     Borrador
                   </span>
                 )}
-                {report.status === "PENDING" && (
+                {report.status === "PENDING_APPROVAL" && (
                   <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
                     En Revisión
                   </span>
@@ -665,7 +665,7 @@ function PropertyDetailPage() {
                         <Edit className="mr-1.5 h-4 w-4" /> Borrador
                       </span>
                     )}
-                    {report.status === "PENDING" && (
+                    {report.status === "PENDING_APPROVAL" && (
                       <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 font-medium text-yellow-800">
                         <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> En
                         Revisión por Supervisor
@@ -702,7 +702,7 @@ function PropertyDetailPage() {
                   )}
 
                   {/* Para el Supervisor: Aprobar o Rechazar */}
-                  {report.status === "PENDING" && (
+                  {report.status === "PENDING_APPROVAL" && (
                     <>
                       <button
                         onClick={handleApproveReport}
