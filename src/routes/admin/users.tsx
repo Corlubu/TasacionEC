@@ -3,9 +3,17 @@ import { DashboardLayout } from "~/components/DashboardLayout";
 import { useAuthStore } from "~/stores/auth-store";
 import { useTRPC } from "~/trpc/react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Users, Shield, ShieldCheck, UserCircle, Loader2 } from "lucide-react";
+import {
+  Users,
+  Shield,
+  ShieldCheck,
+  UserCircle,
+  Loader2,
+  UserPlus,
+  X,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersAdminPage,
@@ -16,7 +24,15 @@ function UsersAdminPage() {
   const { token, isAuthenticated, user } = useAuthStore();
   const trpc = useTRPC();
 
-  // Protección de Ruta Doble (Autenticación + Rol)
+  // Estados para el Modal de Crear Usuario
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "APPRAISER" as "APPRAISER" | "SUPERVISOR" | "ADMIN",
+  });
+
   useEffect(() => {
     if (!isAuthenticated()) {
       navigate({ to: "/login" });
@@ -24,7 +40,7 @@ function UsersAdminPage() {
     }
     if (user?.role !== "ADMIN") {
       toast.error("Acceso denegado. Solo administradores.");
-      navigate({ to: "/dashboard" }); // o a donde prefieras enviarlo
+      navigate({ to: "/dashboard" });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -42,6 +58,20 @@ function UsersAdminPage() {
     }),
   );
 
+  const createUserMutation = useMutation(
+    trpc.createUser.mutationOptions({
+      onSuccess: () => {
+        toast.success("¡Usuario creado exitosamente!");
+        setIsCreateModalOpen(false);
+        setFormData({ name: "", email: "", password: "", role: "APPRAISER" }); // Limpiar formulario
+        usersQuery.refetch();
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Error al crear el usuario");
+      },
+    }),
+  );
+
   const handleRoleChange = (
     userId: number,
     newRole: "APPRAISER" | "SUPERVISOR" | "ADMIN",
@@ -53,6 +83,18 @@ function UsersAdminPage() {
         role: newRole,
       });
     }
+  };
+
+  const handleCreateUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error("Por favor completa todos los campos");
+      return;
+    }
+    createUserMutation.mutate({
+      token: token!,
+      ...formData,
+    });
   };
 
   if (usersQuery.isLoading) {
@@ -68,7 +110,8 @@ function UsersAdminPage() {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8">
-        <div className="mb-8 flex items-center justify-between">
+        {/* Cabecera con Botón de Nuevo Usuario */}
+        <div className="mb-8 flex flex-col items-start justify-between space-y-4 sm:flex-row sm:items-center sm:space-y-0">
           <div>
             <h1 className="flex items-center text-3xl font-bold text-gray-900">
               <ShieldCheck className="mr-3 h-8 w-8 text-blue-600" />
@@ -79,8 +122,17 @@ function UsersAdminPage() {
               la plataforma.
             </p>
           </div>
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition-all hover:bg-blue-700"
+          >
+            <UserPlus className="h-5 w-5" />
+            <span>Nuevo Usuario</span>
+          </button>
         </div>
 
+        {/* Tabla de Usuarios */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -194,6 +246,116 @@ function UsersAdminPage() {
           )}
         </div>
       </div>
+
+      {/* Modal para Crear Nuevo Usuario */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md transform rounded-2xl bg-white p-6 shadow-2xl transition-all">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="flex items-center text-xl font-bold text-gray-900">
+                <UserPlus className="mr-2 h-6 w-6 text-blue-600" />
+                Invitar Nuevo Usuario
+              </h3>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Ej. Juan Pérez"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="juan@empresa.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Contraseña Temporal
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Mínimo 6 caracteres"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Rol del Usuario
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value as any })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="APPRAISER">Perito (Elabora avalúos)</option>
+                  <option value="SUPERVISOR">
+                    Supervisor (Revisa avalúos)
+                  </option>
+                  <option value="ADMIN">Administrador (Acceso total)</option>
+                </select>
+              </div>
+
+              <div className="mt-8 flex justify-end space-x-3 border-t border-gray-100 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="rounded-lg px-5 py-2.5 font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                  className="flex items-center space-x-2 rounded-lg bg-blue-600 px-6 py-2.5 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {createUserMutation.isPending && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  <span>Crear Usuario</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

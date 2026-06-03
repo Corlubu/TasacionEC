@@ -4,6 +4,7 @@ import { baseProcedure } from "../main";
 import { db } from "~/server/db";
 import jwt from "jsonwebtoken";
 import { env } from "~/server/env";
+import bcrypt from "bcrypt";
 
 // 🚨 VALIDADOR ESTRICTO DE ADMINISTRADOR
 async function verifyAdmin(token: string): Promise<number> {
@@ -94,4 +95,58 @@ export const updateUserRole = baseProcedure
     });
 
     return { success: true, role: updatedUser.role };
+  });
+
+export const createUser = baseProcedure
+  .input(
+    z.object({
+      token: z.string(),
+      name: z.string().min(2, "El nombre es muy corto"),
+      email: z.string().email("Correo electrónico inválido"),
+      password: z
+        .string()
+        .min(6, "La contraseña debe tener al menos 6 caracteres"),
+      role: z.enum(["APPRAISER", "SUPERVISOR", "ADMIN"]).default("APPRAISER"),
+    }),
+  )
+  .mutation(async ({ input }) => {
+    // 1. Verificamos que quien pide esto sea un ADMIN
+    const adminId = await verifyAdmin(input.token);
+
+    // 2. Verificamos que el correo no esté registrado ya
+    const existingUser = await db.user.findUnique({
+      where: { email: input.email },
+    });
+    if (existingUser) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Ya existe un usuario registrado con este correo electrónico.",
+      });
+    }
+
+    // 3. Encriptamos la contraseña por seguridad
+    const hashedPassword = await bcrypt.hash(input.password, 10);
+
+    // 4. Creamos al usuario
+    const newUser = await db.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        password: hashedPassword,
+        role: input.role,
+      },
+    });
+
+    // 5. Dejamos huella en la bitácora de auditoría
+    await db.auditLog.create({
+      data: {
+        userId: adminId,
+        action: "USER_CREATED",
+        entity: "User",
+        entityId: newUser.id,
+        metadata: JSON.stringify({ email: newUser.email, role: newUser.role }),
+      },
+    });
+
+    return { success: true, user: { id: newUser.id, email: newUser.email } };
   });

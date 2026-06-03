@@ -49,7 +49,7 @@ export const appRouter = createTRPCRouter({
   generateReport: reports.generateReport,
   getReport: reports.getReport,
   getReports: reports.getReports,
-  updateReportStatus: reports.updateReportStatus, // 👈 ¡NUEVA LÍNEA AGREGADA AQUÍ!
+  updateReportStatus: reports.updateReportStatus,
 
   // PDF Generation
   generatePDF: pdf.generatePDF,
@@ -57,6 +57,7 @@ export const appRouter = createTRPCRouter({
   // Users (Panel de Administración)
   getUsers: users.getUsers,
   updateUserRole: users.updateUserRole,
+  createUser: users.createUser,
 });
 
 export type AppRouter = typeof appRouter;
