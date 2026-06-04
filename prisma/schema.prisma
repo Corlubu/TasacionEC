@@ -218,17 +218,17 @@ model ValuationRequest {
   // Requesting Entity
   financialInstitution  String?  // Nombre de la entidad financiera
   branchOffice          String?  // Oficina/sucursal
-  creditOfficer         String?   // Oficial de crédito responsable
+  creditOfficer         String?  // Oficial de crédito responsable
 
   // Client Information
-  clientName            String?   // Cliente solicitante
-  clientId              String?   // Cédula/RUC del cliente
+  clientName            String?  // Cliente solicitante
+  clientId              String?  // Cédula/RUC del cliente
   clientPhone           String?
   clientEmail           String?
 
   // Legal Owner (may differ from client)
-  legalOwnerName        String?   // Propietario legal según escrituras
-  legalOwnerId          String?   // Cédula/RUC del propietario
+  legalOwnerName        String?  // Propietario legal según escrituras
+  legalOwnerId          String?  // Cédula/RUC del propietario
 
   // Purpose
   purpose               ValuationPurpose
@@ -261,6 +261,8 @@ model Property {
   city        String
   state       String
   zipCode     String?
+  parish      String?        // 👈 NUEVO: Parroquia
+  neighborhood String?       // 👈 NUEVO: Barrio/Sector
   type        PropertyType
   status      PropertyStatus @default(DRAFT)
 
@@ -269,56 +271,42 @@ model Property {
   longitude   Float
 
   // ========== LINDEROS EXACTOS ==========
-  // Norte
   northBoundaryLength     Float?   // metros
   northBoundaryAdjacent   String?  // con qué colinda
-
-  // Sur
   southBoundaryLength     Float?
   southBoundaryAdjacent   String?
-
-  // Este
   eastBoundaryLength      Float?
   eastBoundaryAdjacent    String?
-
-  // Oeste
   westBoundaryLength      Float?
   westBoundaryAdjacent    String?
 
   // ========== ÁREAS ==========
   landArea                Float?   // m² (general)
   builtArea               Float?   // m² (general)
-
-  // Comparación de áreas
   areaAccordingToDeed     Float?   // m² según escritura
   areaOnSite              Float?   // m² medida en sitio
 
-  // Physical Characteristics (existing)
-  bedrooms    Int?
-  bathrooms   Int?
-  floors      Int?
-  yearBuilt   Int?
-
-  // Additional Property Characteristics (existing)
-  frontageWidth   Float?
-  topography      String?
-  occupancyStatus String?
-  zoning          String?          // Mantener para compatibilidad, pero usar los nuevos campos
-  parking         Int?
-  amenities       String[]
+  // Physical Characteristics
+  bedrooms          Int?
+  bathrooms         Int?
+  floors            Int?
+  yearBuilt         Int?
+  frontageWidth     Float?
+  topography        String?
+  occupancyStatus   String?
+  zoning            String?
+  parking           Int?
+  amenities         String[]
+  roomDistribution  String?  @db.Text // 👈 NUEVO: Distribución de ambientes
+  sectorAppreciation String?          // 👈 NUEVO: Plusvalía (Alta, Media, Baja, Nula)
 
   // ========== ENTORNO Y SERVICIOS PÚBLICOS ==========
-  // Clasificación de zona
   zoneClassification      LandUseType?
   urbanConsolidation      UrbanConsolidation?
   populationDensity       PopulationDensity?
-
-  // Vías y accesos
   roadType                RoadType?
-  roadCondition           String?  // "EXCELLENT", "GOOD", "REGULAR", "POOR"
+  roadCondition           String?
   sidewalkAvailable       Boolean  @default(false)
-
-  // Servicios públicos (booleanos)
   hasPotableWater         Boolean  @default(false)
   hasStormDrainage        Boolean  @default(false)
   hasSanitarySewer        Boolean  @default(false)
@@ -330,101 +318,59 @@ model Property {
   hasGarbageCollection    Boolean  @default(false)
 
   // ========== ESPECIFICACIONES TÉCNICAS GRANULARES ==========
-  // Cimentación
   foundationType          FoundationType?
   foundationDescription   String?
-
-  // Estructura
   structureType           StructureType?
   structureDescription    String?
-
-  // Mampostería
   masonryType             MasonryType?
   masonryDescription      String?
-
-  // Entrepisos
   floorType               FloorType?
   floorDescription        String?
-
-  // Revestimientos
   exteriorCoating         CoatingType?
   interiorCoating         CoatingType?
   coatingDescription      String?
-
-  // Carpintería (puertas y ventanas)
   carpentryType           CarpentryType?
   carpentryDescription    String?
-
-  // Cerrajería
-  locksmithType           String?  // "STANDARD", "SECURITY", "HIGH_SECURITY"
+  locksmithType           String?
   locksmithDescription    String?
-
-  // Vidriería
   glazingType             GlazingType?
   glazingDescription      String?
-
-  // Instalaciones hidrosanitarias
   plumbingType            PlumbingType?
   plumbingDescription     String?
-
-  // Instalaciones eléctricas
   electricalType          ElectricalType?
   electricalDescription   String?
-  electricalCapacity      String?  // ej. "110V", "220V", "trifásico"
+  electricalCapacity      String?
 
-  // Construction Details (existing - mantener para compatibilidad)
+  // Construction Details
   roofMaterial       String?
   wallMaterial       String?
   floorMaterial      String?
   conservationState  ConservationState?
 
-  // Legal Information (extracted via OCR)
+  // Legal Information
   legalOwner         String?
   cadastralNumber    String?
   registrationNumber String?
   hasLiens           Boolean @default(false)
   hasEncumbrances    Boolean @default(false)
 
-  // ========== SBS COMPLIANCE FIELDS (Anexo 1, Sección 3) ==========
-  // Régimen de propiedad
+  // ========== SBS COMPLIANCE FIELDS ==========
   propertyRegime              PropertyRegime?
-
-  // Fecha de inspección (diferente a la fecha del reporte)
   inspectionDate              DateTime?
   personPresentAtInspection   String?
-
-  // Índice de saturación del sector (% lotes construidos vs baldíos)
   saturationIndex             Float?
-
-  // Nivel socioeconómico del sector
   socioeconomicLevel          SocioeconomicLevel?
-
-  // Coeficientes urbanísticos
-  cos                         Float?   // Coeficiente de Ocupación del Suelo
-  cus                         Float?   // Coeficiente de Utilización del Suelo
-
-  // Servidumbres y restricciones
+  cos                         Float?
+  cus                         Float?
   easementsAndRestrictions    String?  @db.Text
-
-  // Características panorámicas (vistas, entorno)
   panoramicCharacteristics    String?  @db.Text
-
-  // Unidades arrendables (para propiedades de renta)
   rentableUnits               Int?
-
-  // Porcentaje de alícuota para propiedad horizontal (apartamentos)
-  aliquotPercentage       Float?   // Porcentaje de participación en áreas comunales
-
-  // Desglose granular de estado de obra gris y acabados
-  roofCondition               String?  // Estado del techo
-  fenceCondition              String?  // Estado de cerramiento/cerca
-  ceilingCondition            String?  // Estado de cielo raso
-  stairsCondition             String?  // Estado de escaleras
-
-  // Número de fachadas
+  aliquotPercentage           Float?
+  roofCondition               String?
+  fenceCondition              String?
+  ceilingCondition            String?
+  stairsCondition             String?
   numberOfFacades             Int?
-
-  // Registro de mantenimiento
   hasMaintenanceLogs          Boolean  @default(false)
   maintenanceNotes            String?  @db.Text
 
@@ -440,7 +386,25 @@ model Property {
   valuationReports    ValuationReport[]
   riskAssessments     RiskAssessment[]
   additionalWorks     AdditionalWork[]
+  constructionBlocks  ConstructionBlock[] // 👈 NUEVO: Relación a bloques de construcción
   auditLogs           AuditLog[]
+}
+
+// 👈 NUEVO MODELO: BLOQUES DE CONSTRUCCIÓN
+model ConstructionBlock {
+  id                  Int               @id @default(autoincrement())
+  propertyId          Int
+  property            Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  name                String            // Ej: "Bloque 1 (Casa)", "Bloque 2 (Mediagua)"
+  area                Float             // Área en m²
+  yearBuilt           Int               // Año de construcción
+  conservationState   ConservationState // Estado de conservación (EXCELLENT, GOOD, REGULAR, POOR, VERY_POOR)
+
+  replacementCostPerM2 Float?           // CRN ($/m²) sugerido por el perito
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
 model PropertyPhoto {
@@ -448,23 +412,18 @@ model PropertyPhoto {
   propertyId Int
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // Storage
-  minioKey   String   // S3/MinIO object key
-  url        String   // Presigned URL or public URL
-
-  // Metadata
-  category   String   // "facade", "interior", "kitchen", "bathroom", "damage", "document"
+  minioKey   String
+  url        String
+  category   String
   caption    String?
 
-  // EXIF Data (immutable for audit)
   latitude   Float?
   longitude  Float?
   timestamp  DateTime?
   deviceInfo String?
 
-  // AI Analysis
-  detectedIssues String[] // ["crack", "humidity", "corrosion"]
-  aiConfidence   Float?   // 0-1
+  detectedIssues String[]
+  aiConfidence   Float?
 
   createdAt  DateTime @default(now())
 }
@@ -474,15 +433,11 @@ model Comparable {
   propertyId Int
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // Source
-  source     String   // "portal.com", "manual", "scraped"
+  source     String
   sourceUrl  String?
-
-  // Location
   address    String
-  distance   Float    // meters from subject property
+  distance   Float
 
-  // Characteristics
   price      Float
   pricePerM2 Float
   area       Float
@@ -490,7 +445,6 @@ model Comparable {
   bathrooms  Int?
   yearBuilt  Int?
 
-  // Adjustment Factors
   locationAdjustment Float @default(1.0)
   sizeAdjustment     Float @default(1.0)
   ageAdjustment      Float @default(1.0)
@@ -498,7 +452,6 @@ model Comparable {
 
   adjustedPrice      Float
 
-  // Metadata
   listingDate DateTime?
   createdAt   DateTime  @default(now())
 }
@@ -512,66 +465,40 @@ model ValuationReport {
 
   status     ReportStatus @default(GENERATING)
 
-  // Objeto de valoración según SBS
   valuationObject  ValuationObject?
 
-  // ========== VALORES DE AVALÚO ==========
-  // Método de Homologación (Comparables)
   marketValue          Float?
-
-  // Método de Costo
   costValue            Float?
-
-  // Método de Renta (Capitalización de Rentas)
   incomeValue          Float?
+  cadastralValue       Float?
+  realizationValue     Float?
+  finalValue           Float?
 
-  // Valores adicionales requeridos por normativa
-  cadastralValue       Float?  // Valor catastral municipal
-  realizationValue     Float?  // Valor de realización/oportunidad
-
-  // Valor final
-  finalValue           Float?  // Promedio ponderado o decisión del perito
-
-  // ========== DESGLOSE DE COSTOS ==========
   landValue            Float?
   constructionCost     Float?
-  additionalWorksCost  Float?  // Suma de obras adicionales
+  additionalWorksCost  Float?
   depreciationAmount   Float?
-  depreciationMethod   String? // "Ross-Heidecke", "Fitto-Corvini", "Lineal"
+  depreciationMethod   String?
 
-  // Vida útil
-  totalUsefulLife      Int?    // años
-  remainingUsefulLife  Int?    // años
-  chronologicalAge     Int?    // años
+  totalUsefulLife      Int?
+  remainingUsefulLife  Int?
+  chronologicalAge     Int?
 
-  // ========== ENFOQUE DE CAPITALIZACIÓN DE RENTAS ==========
-  estimatedMonthlyRent Float?  // Renta mensual estimada
-  annualGrossIncome    Float?  // Ingreso bruto anual
-  operatingExpenses    Float?  // Gastos operativos anuales
-  annualNetIncome      Float?  // Ingreso neto anual
-  capitalizationRate   Float?  // Tasa de capitalización (%)
+  estimatedMonthlyRent Float?
+  annualGrossIncome    Float?
+  operatingExpenses    Float?
+  annualNetIncome      Float?
+  capitalizationRate   Float?
 
-  // ========== PARÁMETROS DE CÁLCULO (INMUTABILIDAD LEGAL) ==========
-  // Snapshot de todos los parámetros usados en el momento del cálculo
-  parametersSnapshot   Json?   // {
-                               //   "baseCosts": { "concrete": 150, "steel": 200, ... },
-                               //   "depreciationIndices": { "excellent": 0.95, "good": 0.85, ... },
-                               //   "calculationDate": "2024-01-15",
-                               //   "exchangeRate": 1.0,
-                               //   "inflationIndex": 1.05,
-                               //   ...
-                               // }
+  parametersSnapshot   Json?
 
-  // AI-Generated Content
-  environmentDescription String? @db.Text
+  environmentDescription String?  @db.Text
   technicalDescription   String? @db.Text
-  valueJustification     String? @db.Text
+  valueJustification     String?  @db.Text
 
-  // Document
   pdfUrl               String?
-  documentHash         String? // SHA-256 for immutability
+  documentHash         String?
 
-  // Audit Trail
   generatedAt  DateTime?
   approvedAt   DateTime?
   approvedBy   Int?
@@ -589,46 +516,29 @@ model RiskAssessment {
   propertyId Int
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // ========== RIESGOS NATURALES ==========
   floodRisk       RiskLevel @default(NONE)
   seismicRisk     RiskLevel @default(NONE)
   landslideRisk   RiskLevel @default(NONE)
   volcanicRisk    RiskLevel @default(NONE)
   tsunamiRisk     RiskLevel @default(NONE)
 
-  // ========== RIESGOS AMBIENTALES (CHECKLIST FORMAL) ==========
-  // Actividades industriales pasadas
   hasPastIndustrialActivity       Boolean @default(false)
   pastIndustrialActivityDetails   String? @db.Text
-
-  // Tanques subterráneos
   hasUndergroundTanks             Boolean @default(false)
   undergroundTanksDetails         String?
-
-  // Uso de asbesto
   hasAsbestos                     Boolean @default(false)
   asbestosLocation                String?
-
-  // Contaminación del suelo
   hasSoilContamination            Boolean @default(false)
   soilContaminationDetails        String? @db.Text
-
-  // Proximidad a zonas protegidas
   nearProtectedArea               Boolean @default(false)
   protectedAreaName               String?
-  distanceToProtectedArea         Float?  // meters
-
-  // Proximidad a zonas de riesgo
+  distanceToProtectedArea         Float?
   nearHighRiskZone                Boolean @default(false)
-  highRiskZoneType                String? // "INDUSTRIAL", "CHEMICAL", "NUCLEAR", "MINING"
-  distanceToHighRiskZone          Float?  // meters
-
-  // Otros riesgos ambientales
+  highRiskZoneType                String?
+  distanceToHighRiskZone          Float?
   hasOtherEnvironmentalRisks      Boolean @default(false)
   otherEnvironmentalRisksDetails  String? @db.Text
 
-  // ========== RIESGOS ESTRUCTURALES ==========
-  // Patologías constructivas detectadas
   hasStructuralCracks             Boolean @default(false)
   hasSettlement                   Boolean @default(false)
   hasHumidity                     Boolean @default(false)
@@ -636,13 +546,11 @@ model RiskAssessment {
   hasFoundationIssues             Boolean @default(false)
   hasRoofDamage                   Boolean @default(false)
 
-  detectedIssues                  String[] // Lista detallada
+  detectedIssues                  String[]
 
-  // ========== EVALUACIÓN GENERAL ==========
   overallRisk                     RiskLevel @default(NONE)
   riskNotes                       String?   @db.Text
 
-  // Geospatial Analysis (existing)
   nearbyPOIs      String[]
   accessQuality   String?
 
@@ -655,24 +563,19 @@ model AdditionalWork {
   propertyId            Int
   property              Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // Descripción de la obra
-  name                  String   // ej. "Piscina", "Pérgola", "Sistema domótico"
+  name                  String
   description           String?  @db.Text
-  category              String   // "POOL", "PERGOLA", "DOMOTICS", "FENCE", "GARDEN", "GARAGE", "OTHER"
+  category              String
 
-  // Características
-  area                  Float?   // m² si aplica
+  area                  Float?
   yearBuilt             Int?
 
-  // Valoración
-  replacementCost       Float    // Costo de reposición nuevo
-  depreciationPercent   Float    @default(0) // Porcentaje de depreciación (0-100)
-  depreciatedValue      Float    // Valor depreciado
+  replacementCost       Float
+  depreciationPercent   Float    @default(0)
+  depreciatedValue      Float
 
-  // Estado
   conservationState     ConservationState?
 
-  // Metadata
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -680,36 +583,21 @@ model AdditionalWork {
 model AuditLog {
   id         Int      @id @default(autoincrement())
 
-  // Who
   userId     Int?
   user       User?    @relation(fields: [userId], references: [id])
 
-  // What
-  action     String   // "PROPERTY_CREATED", "PHOTO_UPLOADED", "REPORT_GENERATED", "REPORT_APPROVED"
-  entity     String   // "Property", "ValuationReport", "User"
+  action     String
+  entity     String
   entityId   Int
 
-  // Details
-  changes    String?  @db.Text // JSON string of changes
-  metadata   String?  @db.Text // Additional context
+  changes    String?  @db.Text
+  metadata   String?  @db.Text
 
-  // When
   timestamp  DateTime @default(now())
 
-  // Related entities
   propertyId Int?
   property   Property? @relation(fields: [propertyId], references: [id])
 
   reportId   Int?
   report     ValuationReport? @relation(fields: [reportId], references: [id])
 }
-
-// ========== SPATIAL INDEX MIGRATION ==========
-// The following SQL should be executed manually or via a setup script to create
-// a GIST spatial index for efficient geospatial queries:
-//
-// CREATE EXTENSION IF NOT EXISTS postgis;
-// CREATE INDEX IF NOT EXISTS prop_geo_idx ON "Property"
-// USING GIST (ST_MakePoint(longitude, latitude));
-//
-// Note: This cannot be done via prisma db push and must be executed separately.

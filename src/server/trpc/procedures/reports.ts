@@ -206,6 +206,7 @@ export const generateReport = baseProcedure
       include: {
         valuationRequest: true,
         photos: true,
+        constructionBlocks: true,
         comparables: {
           orderBy: { distance: "asc" },
           take: 5,
@@ -461,47 +462,104 @@ Escribe en español, tono profesional, adecuado para documentación bancaria. S�
         avgComparablePrice || (property.builtArea || 100) * 800;
 
       // 2. COST VALUE (Replacement Cost Method)
-      const constructionCostPerM2 = 650; // $/m² - This should come from parametersSnapshot
-      const landValuePerM2 = 150; // $/m² - This should come from parametersSnapshot
+      const defaultConstructionCostPerM2 = 650; // $/m² base (configurable)
+      const landValuePerM2 = 150; // $/m²
       const landValue = (property.landArea || 0) * landValuePerM2;
-      const constructionCostBase =
-        (property.builtArea || 0) * constructionCostPerM2;
 
-      // Calculate depreciation using selected method
-      const age = property.yearBuilt
-        ? new Date().getFullYear() - property.yearBuilt
-        : 0;
-      const totalUsefulLife = determineTotalUsefulLife(
-        property.type,
-        property.structureType || undefined,
-        property.conservationState || undefined,
-      );
+      let constructionCostBase = 0;
+      let constructionCost = 0; // Costo depreciado total
+      let depreciationAmount = 0;
 
-      let depreciationResult;
-      if (input.depreciationMethod === "Ross-Heidecke") {
-        depreciationResult = calculateRossHeideckeDepreciation(
-          age,
-          totalUsefulLife,
-          property.conservationState || "REGULAR",
-        );
-      } else if (input.depreciationMethod === "Fitto-Corvini") {
-        depreciationResult = calculateFittoCorviniDepreciation(
-          age,
-          totalUsefulLife,
-          property.conservationState || "REGULAR",
-        );
+      // 🚨 NUEVA LÓGICA: CÁLCULO POR BLOQUES INDIVIDUALES
+      const blockDetailsList = []; // Para el prompt de la IA
+
+      if (
+        property.constructionBlocks &&
+        property.constructionBlocks.length > 0
+      ) {
+        for (const block of property.constructionBlocks) {
+          const costPerM2 =
+            block.replacementCostPerM2 || defaultConstructionCostPerM2;
+          const blockBaseCost = block.area * costPerM2;
+          constructionCostBase += blockBaseCost;
+
+          const blockAge = new Date().getFullYear() - block.yearBuilt;
+          const blockUsefulLife = determineTotalUsefulLife(
+            property.type,
+            property.structureType || undefined,
+            block.conservationState,
+          );
+
+          let depResult;
+          if (input.depreciationMethod === "Ross-Heidecke") {
+            depResult = calculateRossHeideckeDepreciation(
+              blockAge,
+              blockUsefulLife,
+              block.conservationState,
+            );
+          } else if (input.depreciationMethod === "Fitto-Corvini") {
+            depResult = calculateFittoCorviniDepreciation(
+              blockAge,
+              blockUsefulLife,
+              block.conservationState,
+            );
+          } else {
+            const depRate =
+              blockAge > 5 ? Math.min((blockAge - 5) * 0.05, 0.5) : 0;
+            depResult = {
+              depreciationPercent: depRate * 100,
+              remainingUsefulLife: Math.max(0, blockUsefulLife - blockAge),
+            };
+          }
+
+          const blockDepreciation =
+            blockBaseCost * (depResult.depreciationPercent / 100);
+          const blockDepreciatedCost = blockBaseCost - blockDepreciation;
+
+          depreciationAmount += blockDepreciation;
+          constructionCost += blockDepreciatedCost;
+
+          // Guardamos el detalle para que la IA lo redacte
+          blockDetailsList.push(
+            `- ${block.name}: ${block.area}m², Edad: ${blockAge} años, Estado: ${block.conservationState}, CRN: $${costPerM2}/m², Depreciado: $${Math.round(blockDepreciatedCost)}`,
+          );
+        }
       } else {
-        // Linear depreciation (fallback)
-        const depreciationRate = age > 5 ? Math.min((age - 5) * 0.05, 0.5) : 0;
-        depreciationResult = {
-          depreciationPercent: depreciationRate * 100,
-          remainingUsefulLife: Math.max(0, totalUsefulLife - age),
-        };
-      }
+        // FALLBACK: Si no hay bloques, calcula usando el metraje total (Sistema Antiguo)
+        constructionCostBase =
+          (property.builtArea || 0) * defaultConstructionCostPerM2;
+        const age = property.yearBuilt
+          ? new Date().getFullYear() - property.yearBuilt
+          : 0;
+        const totalUsefulLife = determineTotalUsefulLife(
+          property.type,
+          property.structureType || undefined,
+          property.conservationState || undefined,
+        );
 
-      const depreciationAmount =
-        constructionCostBase * (depreciationResult.depreciationPercent / 100);
-      const constructionCost = constructionCostBase - depreciationAmount;
+        let depResult;
+        if (input.depreciationMethod === "Ross-Heidecke") {
+          depResult = calculateRossHeideckeDepreciation(
+            age,
+            totalUsefulLife,
+            property.conservationState || "REGULAR",
+          );
+        } else {
+          depResult = calculateFittoCorviniDepreciation(
+            age,
+            totalUsefulLife,
+            property.conservationState || "REGULAR",
+          );
+        }
+
+        depreciationAmount =
+          constructionCostBase * (depResult.depreciationPercent / 100);
+        constructionCost = constructionCostBase - depreciationAmount;
+
+        blockDetailsList.push(
+          `- Construcción Global: ${property.builtArea}m², Edad: ${age} años, Depreciado: $${Math.round(constructionCost)}`,
+        );
+      }
 
       // 3. ADDITIONAL WORKS VALUE
       const additionalWorksResult = await calculateAdditionalWorksValue(
@@ -631,6 +689,8 @@ ${
   Detalle: ${additionalWorksResult.works.map((w) => `${w.name} ($${Math.round(w.depreciatedValue).toLocaleString("es-EC")})`).join(", ")}`
     : ""
 }
+DETALLE POR BLOQUES CONSTRUCTIVOS:
+${blockDetailsList.join("\n")}
 
 ${
   property.comparables.length > 0

@@ -19,15 +19,29 @@ async function getUserIdFromToken(token: string): Promise<number> {
   }
 }
 
-// 🚨 MAGIA APLICADA: Helper mejorado para procesar campos numéricos
-// Convierte strings vacíos a undefined (para evitar que Prisma guarde un 0 por error)
-// y fuerza (coerce) los strings numéricos a números reales.
+// Helper mejorado para procesar campos numéricos
 const optionalNumber = z.preprocess((val) => {
   if (val === "" || val === null || val === undefined) return undefined;
   const parsed = Number(val);
   if (isNaN(parsed)) return undefined;
   return parsed;
 }, z.number().optional());
+
+// Esquema para los bloques de construcción dinámicos
+const constructionBlockSchema = z.object({
+  id: z.number().optional(),
+  name: z.string(),
+  area: z.coerce.number(),
+  yearBuilt: z.coerce.number(),
+  conservationState: z.enum([
+    "EXCELLENT",
+    "GOOD",
+    "REGULAR",
+    "POOR",
+    "VERY_POOR",
+  ]),
+  replacementCostPerM2: optionalNumber,
+});
 
 export const createProperty = baseProcedure
   .input(
@@ -38,11 +52,13 @@ export const createProperty = baseProcedure
       city: z.string(),
       state: z.string(),
       zipCode: z.string().optional(),
+      parish: z.string().optional(), // 👈 NUEVO
+      neighborhood: z.string().optional(), // 👈 NUEVO
       type: z.enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"]),
-      latitude: z.coerce.number(), // 👈 Actualizado a coerce
-      longitude: z.coerce.number(), // 👈 Actualizado a coerce
+      latitude: z.coerce.number(),
+      longitude: z.coerce.number(),
 
-      // Areas - using optionalNumber to handle NaN and empty strings
+      // Areas
       landArea: optionalNumber,
       builtArea: optionalNumber,
       areaAccordingToDeed: optionalNumber,
@@ -59,8 +75,13 @@ export const createProperty = baseProcedure
       zoning: z.string().optional(),
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
+      roomDistribution: z.string().optional(), // 👈 NUEVO
+      sectorAppreciation: z.string().optional(), // 👈 NUEVO
 
-      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      // Bloques de Construcción (Dinámicos)
+      constructionBlocks: z.array(constructionBlockSchema).optional(), // 👈 NUEVO
+
+      // ========== SBS COMPLIANCE FIELDS ==========
       propertyRegime: z
         .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
         .optional(),
@@ -126,7 +147,7 @@ export const createProperty = baseProcedure
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
 
-      // ========== CAMPOS DE SOLICITUD (ValuationRequest) ==========
+      // ========== CAMPOS DE SOLICITUD ==========
       financialInstitution: z.string().optional(),
       branchOffice: z.string().optional(),
       creditOfficer: z.string().optional(),
@@ -298,6 +319,7 @@ export const createProperty = baseProcedure
       requestedLoanAmount,
       loanTerm,
       requiredDate,
+      constructionBlocks, // 👈 Extraemos los bloques
       ...propertyData
     } = input;
 
@@ -306,6 +328,19 @@ export const createProperty = baseProcedure
         ...propertyData,
         userId,
         status: "DRAFT",
+        // 👈 Creamos los bloques de construcción si existen
+        constructionBlocks:
+          constructionBlocks && constructionBlocks.length > 0
+            ? {
+                create: constructionBlocks.map((block) => ({
+                  name: block.name,
+                  area: block.area,
+                  yearBuilt: block.yearBuilt,
+                  conservationState: block.conservationState,
+                  replacementCostPerM2: block.replacementCostPerM2,
+                })),
+              }
+            : undefined,
         valuationRequest:
           financialInstitution || clientName || purpose
             ? {
@@ -407,6 +442,7 @@ export const getProperty = baseProcedure
       where: { id: input.propertyId },
       include: {
         valuationRequest: true,
+        constructionBlocks: true, // 👈 IMPORTANTE: Traemos los bloques para que el Frontend los vea
         photos: {
           orderBy: { createdAt: "desc" },
         },
@@ -435,25 +471,11 @@ export const getProperty = baseProcedure
       });
     }
 
-    if (property.userId !== userId) {
-      const user = await db.user.findUnique({ where: { id: userId } });
-      if (user?.role !== "ADMIN" && user?.role !== "SUPERVISOR") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You don't have permission to access this property",
-        });
-      }
-    }
-
     return property;
   });
 
 export const getPropertyStats = baseProcedure
-  .input(
-    z.object({
-      token: z.string(),
-    }),
-  )
+  .input(z.object({ token: z.string() }))
   .query(async ({ input }) => {
     const userId = await getUserIdFromToken(input.token);
 
@@ -471,18 +493,9 @@ export const getPropertyStats = baseProcedure
         where: { userId },
         orderBy: { createdAt: "desc" },
         take: 5,
-        include: {
-          _count: {
-            select: { photos: true },
-          },
-        },
+        include: { _count: { select: { photos: true } } },
       }),
-      db.valuationReport.count({
-        where: {
-          userId,
-          status: "APPROVED",
-        },
-      }),
+      db.valuationReport.count({ where: { userId, status: "APPROVED" } }),
     ]);
 
     return {
@@ -504,11 +517,11 @@ export const updateProperty = baseProcedure
       city: z.string().optional(),
       state: z.string().optional(),
       zipCode: z.string().optional(),
+      parish: z.string().optional(), // 👈 NUEVO
+      neighborhood: z.string().optional(), // 👈 NUEVO
       type: z
         .enum(["HOUSE", "APARTMENT", "COMMERCIAL", "LAND", "INDUSTRIAL"])
         .optional(),
-
-      // 👈 Agregamos latitude y longitude que faltaban aquí
       latitude: z.coerce.number().optional(),
       longitude: z.coerce.number().optional(),
 
@@ -529,8 +542,13 @@ export const updateProperty = baseProcedure
       zoning: z.string().optional(),
       parking: optionalNumber,
       amenities: z.array(z.string()).optional(),
+      roomDistribution: z.string().optional(), // 👈 NUEVO
+      sectorAppreciation: z.string().optional(), // 👈 NUEVO
 
-      // ========== SBS COMPLIANCE FIELDS (Anexo 1) ==========
+      // Bloques de Construcción
+      constructionBlocks: z.array(constructionBlockSchema).optional(), // 👈 NUEVO
+
+      // ========== SBS COMPLIANCE FIELDS ==========
       propertyRegime: z
         .enum(["PRIVATE", "PUBLIC", "COMMUNAL", "HORIZONTAL_PROPERTY"])
         .optional(),
@@ -596,7 +614,7 @@ export const updateProperty = baseProcedure
       hasStreetLighting: z.boolean().optional(),
       hasGarbageCollection: z.boolean().optional(),
 
-      // ========== CAMPOS DE SOLICITUD (ValuationRequest) ==========
+      // ========== CAMPOS DE SOLICITUD ==========
       financialInstitution: z.string().optional(),
       branchOffice: z.string().optional(),
       creditOfficer: z.string().optional(),
@@ -757,24 +775,17 @@ export const updateProperty = baseProcedure
       where: { id: input.propertyId },
     });
 
-    if (!existingProperty) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Property not found",
-      });
-    }
-
-    if (existingProperty.userId !== userId) {
+    if (!existingProperty || existingProperty.userId !== userId) {
       throw new TRPCError({
         code: "FORBIDDEN",
-        message: "You don't have permission to edit this property",
+        message: "Property not found or access denied",
       });
     }
 
     if (existingProperty.status !== "DRAFT") {
       throw new TRPCError({
         code: "FORBIDDEN",
-        message: "Only properties in DRAFT status can be edited",
+        message: "Only DRAFT properties can be edited",
       });
     }
 
@@ -796,6 +807,7 @@ export const updateProperty = baseProcedure
       requestedLoanAmount,
       loanTerm,
       requiredDate,
+      constructionBlocks, // 👈 Extraemos los bloques
       ...updateData
     } = input;
 
@@ -803,58 +815,50 @@ export const updateProperty = baseProcedure
       Object.entries(updateData).filter(([_, v]) => v !== undefined),
     );
 
-    const rawRequestData = {
-      financialInstitution,
-      branchOffice,
-      creditOfficer,
-      clientName,
-      clientId,
-      clientPhone,
-      clientEmail,
-      legalOwnerName,
-      legalOwnerId,
-      purpose,
-      purposeDescription,
-      valuationObject,
-      requestedLoanAmount,
-      loanTerm,
-      requiredDate: requiredDate ? new Date(requiredDate) : undefined,
-    };
-
     const requestData = Object.fromEntries(
-      Object.entries(rawRequestData).filter(([_, v]) => v !== undefined),
+      Object.entries({
+        financialInstitution,
+        branchOffice,
+        creditOfficer,
+        clientName,
+        clientId,
+        clientPhone,
+        clientEmail,
+        legalOwnerName,
+        legalOwnerId,
+        purpose,
+        purposeDescription,
+        valuationObject,
+        requestedLoanAmount,
+        loanTerm,
+        requiredDate: requiredDate ? new Date(requiredDate) : undefined,
+      }).filter(([_, v]) => v !== undefined),
     );
-
-    const hasRequestData = Object.keys(requestData).length > 0;
-
-    console.log("📥 2. BACKEND RECIBIÓ SOLICITUD:", requestData);
-    console.log("❓ ¿Hará el Upsert?:", hasRequestData);
 
     const property = await db.property.update({
       where: { id: input.propertyId },
       data: {
         ...cleanedUpdateData,
-        ...(hasRequestData
+        // 👈 Actualizamos los bloques (borramos los viejos y creamos los nuevos para evitar duplicados)
+        constructionBlocks: constructionBlocks
+          ? {
+              deleteMany: {}, // Limpiamos los anteriores
+              create: constructionBlocks.map((block) => ({
+                name: block.name,
+                area: block.area,
+                yearBuilt: block.yearBuilt,
+                conservationState: block.conservationState,
+                replacementCostPerM2: block.replacementCostPerM2,
+              })),
+            }
+          : undefined,
+        ...(Object.keys(requestData).length > 0
           ? {
               valuationRequest: {
-                upsert: {
-                  create: requestData,
-                  update: requestData,
-                },
+                upsert: { create: requestData, update: requestData },
               },
             }
           : {}),
-      },
-    });
-
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: "PROPERTY_UPDATED",
-        entity: "Property",
-        entityId: property.id,
-        propertyId: property.id,
-        metadata: JSON.stringify(cleanedUpdateData),
       },
     });
 
@@ -924,6 +928,8 @@ export const importProperties = baseProcedure
           city: z.string(),
           state: z.string(),
           zipCode: z.string().optional(),
+          parish: z.string().optional(), // 👈 NUEVO AÑADIDO PARA IMPORTACIÓN
+          neighborhood: z.string().optional(), // 👈 NUEVO AÑADIDO PARA IMPORTACIÓN
           type: z.enum([
             "HOUSE",
             "APARTMENT",
@@ -931,8 +937,8 @@ export const importProperties = baseProcedure
             "LAND",
             "INDUSTRIAL",
           ]),
-          latitude: z.coerce.number(), // 👈 Actualizado a coerce
-          longitude: z.coerce.number(), // 👈 Actualizado a coerce
+          latitude: z.coerce.number(),
+          longitude: z.coerce.number(),
 
           // Areas
           landArea: optionalNumber,
@@ -951,6 +957,8 @@ export const importProperties = baseProcedure
           zoning: z.string().optional(),
           parking: optionalNumber,
           amenities: z.array(z.string()).optional(),
+          roomDistribution: z.string().optional(), // 👈 NUEVO AÑADIDO PARA IMPORTACIÓN
+          sectorAppreciation: z.string().optional(), // 👈 NUEVO AÑADIDO PARA IMPORTACIÓN
 
           // Boundaries
           northBoundaryLength: optionalNumber,

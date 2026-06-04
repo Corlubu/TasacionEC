@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { Tab } from "@headlessui/react";
 import {
   Home,
@@ -13,6 +13,8 @@ import {
   Wrench,
   Shield,
   Building2,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 interface PropertyFormData {
@@ -307,6 +309,7 @@ export function PropertyForm({
 
   const {
     register,
+    control,
     handleSubmit,
     watch,
     formState: { errors },
@@ -327,8 +330,19 @@ export function PropertyForm({
       hasLiens: false,
       hasEncumbrances: false,
       hasMaintenanceLogs: false,
+      ...initialValues,
+      constructionBlocks: initialValues?.constructionBlocks || [],
     },
     values: computedValues as PropertyFormData,
+  });
+
+  const {
+    fields: blocks,
+    append: appendBlock,
+    remove: removeBlock,
+  } = useFieldArray({
+    control,
+    name: "constructionBlocks",
   });
 
   const propertyType = watch("type");
@@ -422,7 +436,7 @@ export function PropertyForm({
           ))}
         </Tab.List>
 
-        {/* 🚨 MAGIA APLICADA: Envolvemos todas las pestañas en un fieldset disabled si estamos en Modo Solo Lectura */}
+        {/* Envolvemos todas las pestañas en un fieldset disabled si estamos en Modo Solo Lectura */}
         <Tab.Panels className="mt-6">
           <fieldset
             disabled={readOnly}
@@ -487,6 +501,135 @@ export function PropertyForm({
                 </div>
               </div>
 
+              {/* 🚨 SECCIÓN: BLOQUES CONSTRUCTIVOS */}
+
+              <div className="mt-6 space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex flex-col items-start justify-between md:flex-row md:items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      Desglose de Construcciones
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Agregue los diferentes bloques para el cálculo de
+                      depreciación individual.
+                    </p>
+                  </div>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendBlock({
+                          name: "",
+                          area: 0,
+                          yearBuilt: new Date().getFullYear(),
+                          conservationState: "REGULAR",
+                          replacementCostPerM2: null,
+                        })
+                      }
+                      className="mt-4 flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 md:mt-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Agregar Bloque</span>
+                    </button>
+                  )}
+                </div>
+
+                {blocks.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-500">
+                    No hay bloques de construcción registrados. (Aplica si es
+                    solo Terreno).
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {blocks.map((block, index) => (
+                      <div
+                        key={block.id}
+                        className="relative rounded-xl border border-gray-200 bg-gray-50 p-5"
+                      >
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => removeBlock(index)}
+                            className="absolute right-4 top-4 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        )}
+
+                        <h4 className="mb-4 font-bold text-blue-800">
+                          Bloque #{index + 1}
+                        </h4>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                          <div className="md:col-span-2">
+                            <label className="mb-1 block text-xs font-medium text-gray-500">
+                              Nombre del Bloque (Ej. Mediagua)
+                            </label>
+                            <input
+                              {...register(`constructionBlocks.${index}.name`, {
+                                required: true,
+                              })}
+                              disabled={readOnly}
+                              className="w-full rounded-lg border border-gray-300 p-2 text-sm disabled:bg-gray-100"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-500">
+                              Área (m²)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              {...register(`constructionBlocks.${index}.area`, {
+                                required: true,
+                              })}
+                              disabled={readOnly}
+                              className="w-full rounded-lg border border-gray-300 p-2 text-sm disabled:bg-gray-100"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-500">
+                              Año Construcción
+                            </label>
+                            <input
+                              type="number"
+                              {...register(
+                                `constructionBlocks.${index}.yearBuilt`,
+                                { required: true },
+                              )}
+                              disabled={readOnly}
+                              className="w-full rounded-lg border border-gray-300 p-2 text-sm disabled:bg-gray-100"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-500">
+                              Estado
+                            </label>
+                            <select
+                              {...register(
+                                `constructionBlocks.${index}.conservationState`,
+                                { required: true },
+                              )}
+                              disabled={readOnly}
+                              className="w-full rounded-lg border border-gray-300 p-2 text-sm disabled:bg-gray-100"
+                            >
+                              <option value="EXCELLENT">Excelente</option>
+                              <option value="GOOD">Bueno</option>
+                              <option value="REGULAR">Regular</option>
+                              <option value="POOR">Malo</option>
+                              <option value="VERY_POOR">Pésimo</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Location Information */}
               <div>
                 <h3 className="mb-4 text-lg font-semibold text-gray-900">
@@ -510,6 +653,45 @@ export function PropertyForm({
                         {errors.address.message}
                       </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Parroquia
+                    </label>
+                    <input
+                      type="text"
+                      {...register("parish")}
+                      disabled={readOnly}
+                      className="w-full rounded-lg border border-gray-300 p-2.5 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Barrio / Sector
+                    </label>
+                    <input
+                      type="text"
+                      {...register("neighborhood")}
+                      disabled={readOnly}
+                      className="w-full rounded-lg border border-gray-300 p-2.5 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Plusvalía del Sector
+                    </label>
+                    <select
+                      {...register("sectorAppreciation")}
+                      disabled={readOnly}
+                      className="w-full rounded-lg border border-gray-300 p-2.5 disabled:bg-gray-100"
+                    >
+                      <option value="">Seleccione...</option>
+                      <option value="ALTA">Alta</option>
+                      <option value="MEDIA">Media</option>
+                      <option value="BAJA">Baja</option>
+                      <option value="NULA">Nula</option>
+                    </select>
                   </div>
 
                   <div>
@@ -541,11 +723,32 @@ export function PropertyForm({
                       })}
                       className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
                     >
-                      <option value="Pichincha">Pichincha</option>
-                      <option value="Guayas">Guayas</option>
                       <option value="Azuay">Azuay</option>
+                      <option value="Bolívar">Bolívar</option>
+                      <option value="Cañar">Cañar</option>
+                      <option value="Carchi">Carchi</option>
+                      <option value="Chimborazo">Chimborazo</option>
+                      <option value="Cotopaxi">Cotopaxi</option>
+                      <option value="El Oro">El Oro</option>
+                      <option value="Esmeraldas">Esmeraldas</option>
+                      <option value="Galápagos">Galápagos</option>
+                      <option value="Guayas">Guayas</option>
+                      <option value="Imbabura">Imbabura</option>
+                      <option value="Loja">Loja</option>
+                      <option value="Los Ríos">Los Ríos</option>
                       <option value="Manabí">Manabí</option>
+                      <option value="Morona Santiago">Morona Santiago</option>
+                      <option value="Napo">Napo</option>
+                      <option value="Orellana">Orellana</option>
+                      <option value="Pastaza">Pastaza</option>
+                      <option value="Pichincha">Pichincha</option>
+                      <option value="Santa Elena">Santa Elena</option>
+                      <option value="Santo Domingo de los Tsáchilas">
+                        Santo Domingo de los Tsáchilas
+                      </option>
+                      <option value="Sucumbíos">Sucumbíos</option>
                       <option value="Tungurahua">Tungurahua</option>
+                      <option value="Zamora Chinchipe">Zamora Chinchipe</option>
                     </select>
                     {errors.state && (
                       <p className="mt-1 text-sm text-red-600">
@@ -752,6 +955,19 @@ export function PropertyForm({
                       placeholder="2"
                     />
                   </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Distribución de Ambientes
+                  </label>
+                  <textarea
+                    {...register("roomDistribution")}
+                    disabled={readOnly}
+                    rows={3}
+                    placeholder="Ej. PB: Sala, cocina..."
+                    className="w-full rounded-lg border border-gray-300 p-2.5 disabled:bg-gray-100"
+                  />
                 </div>
 
                 {/* Amenities */}
